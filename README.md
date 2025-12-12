@@ -193,6 +193,6 @@ MIT License — See [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Made with ❤️ by [Salah Eddine Medkour](https://linkedin.com/in/salah-eddine-medkour)**
+**Made by [Salah Eddine Medkour](https://linkedin.com/in/salah-eddine-medkour)**
 
 </div>
