@@ -1,0 +1,68 @@
+{
+    "title": "General Knowledge Quiz",
+    "institution": "AirQuiz Academy",
+    "subject": "General Knowledge",
+    "year": "2024",
+    "questions": [
+        {
+            "id": 1,
+            "text": "What is the capital of France?",
+            "options": [
+                "London",
+                "Berlin",
+                "Paris",
+                "Madrid"
+            ],
+            "correct": "Paris",
+            "time": 60
+        },
+        {
+            "id": 2,
+            "text": "Which planet is known as the Red Planet?",
+            "options": [
+                "Mars",
+                "Venus",
+                "Jupiter",
+                "Saturn"
+            ],
+            "correct": "Mars",
+            "time": 60
+        },
+        {
+            "id": 3,
+            "text": "What is the largest mammal?",
+            "options": [
+                "African Elephant",
+                "Blue Whale",
+                "Giraffe",
+                "Hippopotamus"
+            ],
+            "correct": "Blue Whale",
+            "time": 60
+        },
+        {
+            "id": 4,
+            "text": "Who wrote 'Romeo and Juliet'?",
+            "options": [
+                "Charles Dickens",
+                "William Shakespeare",
+                "Jane Austen",
+                "Mark Twain"
+            ],
+            "correct": "William Shakespeare",
+            "time": 60
+        },
+        {
+            "id": 5,
+            "text": "What is the chemical symbol for Gold?",
+            "options": [
+                "Ag",
+                "Fe",
+                "Au",
+                "Cu"
+            ],
+            "correct": "Au",
+            "time": 60
+        }
+    ]
+}

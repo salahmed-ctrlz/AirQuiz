@@ -1,0 +1,33 @@
+{
+    "_comment": "This is a template file showing the structure for creating AirQuiz exams",
+    "_instructions": "Copy this file, rename it, and edit the questions below",
+    "title": "My Exam Title",
+    "questions": [
+        {
+            "id": 1,
+            "text": "What is the question text?",
+            "options": [
+                "Option A",
+                "Option B",
+                "Option C",
+                "Option D"
+            ],
+            "correct": "Option A",
+            "time": 30,
+            "image": null
+        },
+        {
+            "id": 2,
+            "text": "Another example question?",
+            "options": [
+                "First choice",
+                "Second choice",
+                "Third choice",
+                "Fourth choice"
+            ],
+            "correct": "Second choice",
+            "time": 30,
+            "image": null
+        }
+    ]
+}
