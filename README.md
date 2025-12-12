@@ -30,8 +30,25 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.9+
-- Node.js 18+
+
+> ⚠️ **IMPORTANT: Python 3.9 - 3.12 required!**  
+> Python 3.13+ is NOT supported yet (packages require Rust to build).
+
+- **Python 3.9, 3.10, 3.11, or 3.12** — [Download Python 3.12](https://www.python.org/downloads/release/python-3120/)
+- **Node.js 18+** — [Download Node.js](https://nodejs.org/)
+
+#### Multiple Python Versions?
+If you have multiple Python versions installed, use the specific version:
+
+```bash
+# Windows - use py launcher
+py -3.12 -m pip install -r backend/requirements.txt
+py -3.12 -m uvicorn main:sio_app --host 0.0.0.0 --port 8000
+
+# Mac/Linux - use explicit version
+python3.12 -m pip install -r backend/requirements.txt
+python3.12 -m uvicorn main:sio_app --host 0.0.0.0 --port 8000
+```
 
 ### One-Click Launch
 
@@ -48,6 +65,13 @@ python start.py
 ```
 
 This automatically installs dependencies, starts both servers, and opens the admin dashboard.
+
+### Windows Firewall
+To allow other devices to connect, run as Administrator:
+```powershell
+netsh advfirewall firewall add rule name="AirQuiz Backend" dir=in action=allow protocol=TCP localport=8000
+netsh advfirewall firewall add rule name="AirQuiz Frontend" dir=in action=allow protocol=TCP localport=5173
+```
 
 ---
 
