@@ -19,6 +19,12 @@ import type { Question } from '@/lib/types';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, CheckCircle, Clock } from 'lucide-react';
 
+// Helper function to detect if text contains Arabic characters
+const isArabic = (text: string): boolean => {
+  const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+  return arabicPattern.test(text);
+};
+
 export default function QuizActive() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -278,8 +284,13 @@ export default function QuizActive() {
           <div className="space-y-4">
             <Card className="border shadow-sm">
               <CardHeader className="bg-secondary/20 border-b py-3 px-4">
-                <CardTitle className="text-base sm:text-lg flex justify-between items-start font-medium leading-relaxed">
-                  <span><span className="text-muted-foreground mr-1">Q{currentIndex + 1}.</span> {currentQuestion.text}</span>
+                <CardTitle
+                  className="text-base sm:text-lg flex justify-between items-start font-medium leading-relaxed"
+                  dir={isArabic(currentQuestion.text) ? 'rtl' : 'ltr'}
+                >
+                  <span className={isArabic(currentQuestion.text) ? 'text-right w-full' : ''}>
+                    <span className={`text-muted-foreground ${isArabic(currentQuestion.text) ? 'ml-1' : 'mr-1'}`}>Q{currentIndex + 1}.</span> {currentQuestion.text}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-4 px-4 pb-6">
@@ -295,15 +306,17 @@ export default function QuizActive() {
                       key={option}
                       onClick={() => handleSelectAnswer(currentQuestion.id, option)}
                       disabled={isLocked}
+                      dir={isArabic(option) ? 'rtl' : 'ltr'}
                       className={`
-                                          p-3.5 rounded-lg text-left transition-all border relative text-sm sm:text-base
+                                          p-3.5 rounded-lg transition-all border relative text-sm sm:text-base
+                                          ${isArabic(option) ? 'text-right' : 'text-left'}
                                           ${answers[currentQuestion.id] === option
                           ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-1 ring-blue-600/20'
                           : 'border-input hover:border-blue-300 hover:bg-accent'}
                                           ${isLocked ? 'opacity-70 cursor-not-allowed' : ''}
                                       `}
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className={`flex items-center justify-between gap-3 ${isArabic(option) ? 'flex-row-reverse' : ''}`}>
                         <span className="font-medium text-foreground">{option}</span>
                         {answers[currentQuestion.id] === option && (
                           <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
