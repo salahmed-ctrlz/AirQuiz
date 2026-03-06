@@ -42,8 +42,11 @@ import {
   Plus,
   DoorOpen,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  X
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
 
 export default function Dashboard() {
@@ -211,11 +214,31 @@ export default function Dashboard() {
       const res = await fetch(`${config.apiUrl}/api/exams/${filename}`);
       if (!res.ok) throw new Error('Failed to fetch exam content');
       const data = await res.json();
-      // Just set state, no need to re-upload if selecting from list
       setExam(data);
       toast({ title: 'Exam Selected', description: `Loaded "${data.title}"` });
     } catch (e) {
       toast({ title: 'Error', description: 'Could not load the selected exam.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeselectExam = () => {
+    if (examActive) return;
+    setExam(null);
+    toast({ description: 'Exam deselected.' });
+  };
+
+  const handleDeleteExam = async (filename: string, title: string) => {
+    if (examActive) return;
+    if (!confirm(`Delete "${title}" permanently?`)) return;
+    try {
+      const res = await fetch(`${config.apiUrl}/api/exams/${filename}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      // if the deleted exam was loaded, clear it
+      if (exam?.title === title) setExam(null);
+      fetchExams();
+      toast({ description: `"${title}" deleted.` });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive' });
     }
   };
 
@@ -472,6 +495,7 @@ export default function Dashboard() {
               </Label>
               <Switch id="demo-mode" checked={isDemo} onCheckedChange={toggleDemo} />
             </div>
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
             </Button>
@@ -515,10 +539,20 @@ export default function Dashboard() {
                         <div className="h-8 w-8 rounded-full bg-background border flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
                           <FileJson className="h-4 w-4 text-foreground/70" />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium text-sm truncate">{ex.title}</p>
                           <p className="text-xs text-muted-foreground">{ex.questionCount} Qs</p>
                         </div>
+                        {/* delete button — stops propagation so click doesn't also select */}
+                        {!examActive && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteExam(ex.filename, ex.title); }}
+                            className="p-1.5 rounded-md text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors opacity-0 group-hover:opacity-100"
+                            title={`Delete ${ex.title}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -632,6 +666,12 @@ export default function Dashboard() {
                   <span className="flex items-center gap-2">
                     {examActive ? <ActivityIndicator /> : <FileJson className="h-5 w-5 text-muted-foreground" />}
                     {exam ? exam.title : "No Exam Loaded"}
+                    {/* deselect button — only when exam loaded but not running */}
+                    {exam && !examActive && (
+                      <button onClick={handleDeselectExam} className="p-1 rounded hover:bg-secondary" title="Clear selection">
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    )}
                   </span>
                   {examActive && (
                     <span className="text-xl font-mono font-bold text-primary">
@@ -720,7 +760,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {students.map((student) => (
-                      <StudentCard key={student.id} student={student} />
+                      <StudentCard key={student.id} student={student} totalQuestions={exam?.questions?.length} />
                     ))}
                   </div>
                 )}

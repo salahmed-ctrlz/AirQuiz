@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer';
 import { config } from '@/lib/config';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
 
 export default function AdminLogin() {
@@ -43,6 +44,9 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center space-y-4">

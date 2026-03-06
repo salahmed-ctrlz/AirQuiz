@@ -1,50 +1,64 @@
+/**
+ * AirQuiz — Root application component.
+ * Wraps providers (theme, language, query, tooltips) and defines all routes.
+ *
+ * Author: Salah Eddine Medkour <medkoursalaheddine@gmail.com>
+ */
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "next-themes";
+import { LanguageProvider } from "@/i18n/LanguageContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-// Student pages
+// Pages
+import Landing from "@/pages/Landing";
+import About from "@/pages/About";
 import StudentLogin from "@/pages/student/Login";
 import WaitingRoom from "@/pages/student/WaitingRoom";
 import QuizActive from "@/pages/student/QuizActive";
 import Results from "@/pages/student/Results";
-
-// Admin pages
 import AdminLogin from "@/pages/admin/AdminLogin";
 import Dashboard from "@/pages/admin/Dashboard";
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
-
-// 404
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Student Routes */}
-          <Route path="/" element={<StudentLogin />} />
-          <Route path="/waiting" element={<WaitingRoom />} />
-          <Route path="/quiz" element={<QuizActive />} />
-          <Route path="/results" element={<Results />} />
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Landing — role selector */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/about" element={<About />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route element={<ProtectedAdminRoute />}>
-            <Route path="/admin/dashboard" element={<Dashboard />} />
-          </Route>
+              {/* Student flow */}
+              <Route path="/student" element={<StudentLogin />} />
+              <Route path="/waiting" element={<WaitingRoom />} />
+              <Route path="/quiz" element={<QuizActive />} />
+              <Route path="/results" element={<Results />} />
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+              {/* Admin flow */}
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route element={<ProtectedAdminRoute />}>
+                <Route path="/admin/dashboard" element={<Dashboard />} />
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </LanguageProvider>
+  </ThemeProvider>
 );
 
 export default App;

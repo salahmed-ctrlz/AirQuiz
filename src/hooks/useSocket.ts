@@ -80,7 +80,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       socketRef.current = io(config.socketUrl, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: config.reconnection.maxAttempts,
+        reconnectionAttempts: 15,
         reconnectionDelay: config.reconnection.baseDelay,
         reconnectionDelayMax: config.reconnection.maxDelay,
       });
@@ -100,6 +100,18 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
       socketRef.current.on('connect_error', (error) => {
         console.error('Socket.IO connection error:', error);
+        setStatus('error');
+      });
+
+      // auto-rejoin after network recovery so session is restored
+      socketRef.current.on('reconnect', () => {
+        console.log('🔄 Socket.IO reconnected — re-authenticating');
+        setStatus('connected');
+        optionsRef.current.onConnect?.();
+      });
+
+      socketRef.current.on('reconnect_failed', () => {
+        console.error('Socket.IO reconnection failed after all attempts');
         setStatus('error');
       });
 

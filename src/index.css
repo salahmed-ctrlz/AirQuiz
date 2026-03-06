@@ -71,6 +71,12 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* RTL-aware progress bar: fills from right in Arabic mode */
+[dir="rtl"] .progress-bar-fill {
+  transform-origin: right;
 }

@@ -1,7 +1,19 @@
 {
   "name": "airquiz-classroom",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Offline-first, real-time classroom quiz platform",
+  "author": {
+    "name": "Salah Eddine Medkour",
+    "email": "medkoursalaheddine@gmail.com",
+    "url": "https://salahmed-ctrlz.github.io/salaheddine-medkour-portfolio/"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/salahmed-ctrlz/airquiz-classroom",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/salahmed-ctrlz/airquiz-classroom.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

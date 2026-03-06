@@ -1,14 +1,16 @@
-// AirQuiz Configuration
+/**
+ * AirQuiz — Frontend configuration.
+ * Auto-detects LAN IP for mobile connectivity.
+ *
+ * Author: Salah Eddine Medkour <medkoursalaheddine@gmail.com>
+ */
 
-// Helper to determine base URL dynamically
+// port 8000 matches backend BACKEND_PORT default — override via VITE_API_URL
 const getBaseUrl = () => {
-  // If running in browser
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // If connecting from something other than localhost, assume backend is on the same host default port 8000
     return `http://${hostname}:8000`;
   }
-  // Fallback or SSR
   return 'http://localhost:8000';
 };
 

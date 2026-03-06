@@ -1,13 +1,14 @@
 // AirQuiz Type Definitions
 
 export interface Student {
-  id: string; // Changed to string to match backend usage often
+  id: string;
   firstName: string;
   lastName: string;
   group: string;
   isOnline: boolean;
   hasAnswered: boolean;
   score: number;
+  answersCount: number;
   lastAnswer?: string;
   isCorrect?: boolean;
 }

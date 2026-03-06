@@ -1,14 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime
-from enum import Enum
-
-class GroupEnum(str, Enum):
-    G1 = "G1"
-    G2 = "G2"
-    G3 = "G3"
-    G4 = "G4"
-    G5 = "G5"
+from models import GroupEnum
 
 # Metadata Schemas
 class MetadataCreate(BaseModel):

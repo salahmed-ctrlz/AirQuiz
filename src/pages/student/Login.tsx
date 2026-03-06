@@ -20,6 +20,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { config } from '@/lib/config';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function StudentLogin() {
   const navigate = useNavigate();
@@ -92,6 +93,9 @@ export default function StudentLogin() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg border-t-4 border-t-primary">
           <CardHeader className="text-center space-y-4">
