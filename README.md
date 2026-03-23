@@ -1,6 +1,6 @@
 # AirQuiz 🎓
 
-> Real-time, offline-first classroom quiz platform. No internet required.
+> Open source Real-time, offline-first classroom quiz platform created by Salah Eddine Medkour for Universities with no internet connection.
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue)](https://www.python.org/)
