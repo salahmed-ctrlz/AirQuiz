@@ -69,14 +69,72 @@
   * {
     @apply border-border;
   }
+
+  html {
+    height: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Prevent iOS text size adjust on orientation change */
+    -webkit-text-size-adjust: 100%;
+    /* Prevent iOS bounce/overscroll on body */
+    overscroll-behavior: none;
+    min-height: 100%;
+    min-height: -webkit-fill-available;
+  }
+
+  /* ── iOS font-size floor ──────────────────────────────────────────
+     Fonts < 16px cause iOS Safari to auto-zoom on input focus.
+     Applies to interactive elements. Non-interactive tiny text classes
+     are unset below to let Tailwind handle them.                      */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
   }
 }
 
-/* RTL-aware progress bar: fills from right in Arabic mode */
+/* ── Safe-area utilities (notch / home-indicator awareness) ───────── */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Fixed bottom bar — clears the iPhone home indicator */
+  .bottom-nav-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+
+  /* WebKit momentum scroll for overflow containers on iOS */
+  .scroll-momentum {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Hide scrollbars while keeping content scrollable */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── RTL-aware progress bar ───────────────────────────────────────── */
 [dir="rtl"] .progress-bar-fill {
   transform-origin: right;
 }

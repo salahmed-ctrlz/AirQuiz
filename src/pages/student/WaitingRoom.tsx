@@ -28,15 +28,34 @@ export default function WaitingRoom() {
   const [isJoined, setIsJoined] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { status, connect, send, isDemo } = useSocket({
+  const { status, connect, disconnect, send, isDemo } = useSocket({
     onConnect: () => { /* join logic moved to effect */ },
-    onJoined: (studentId, roomState) => {
+    onJoined: (studentId, roomState, previousAnswers) => {
+      console.log("JOINED success, verifying room alignment:", roomState.roomId);
       sessionStorage.setItem('studentId', studentId);
       sessionStorage.setItem('roomState', JSON.stringify(roomState));
+      
+      // Store previous answers from server so QuizActive can restore them
+      if (previousAnswers && Object.keys(previousAnswers).length > 0) {
+        sessionStorage.setItem('answers', JSON.stringify(previousAnswers));
+      }
+      
+      // CRITICAL: Standardize the session for the actual roomId the server assigned
+      if (roomState.roomId) {
+          const stored = sessionStorage.getItem('studentInfo');
+          if (stored) {
+              const parsed = JSON.parse(stored);
+              const updated = { ...parsed, room_id: roomState.roomId };
+              sessionStorage.setItem('studentInfo', JSON.stringify(updated));
+              setStudentInfo(updated);
+          }
+      }
+      
       setIsJoined(true);
       setErrorMessage(null);
     },
     onStartExam: (questions, duration, endTime) => {
+      console.log("Exam starting with", questions.length, "questions");
       sessionStorage.setItem('examQuestions', JSON.stringify(questions));
       sessionStorage.setItem('examEndTime', endTime);
       navigate('/quiz');
@@ -61,8 +80,11 @@ export default function WaitingRoom() {
     setStudentInfo(parsed);
   }, [navigate]);
 
-  // connect once on mount
-  useEffect(() => { connect(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  // connect once on mount + disconnect on unmount
+  useEffect(() => {
+    connect();
+    return () => { disconnect(); };
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // join room when connected — handles both initial connect and reconnect
   useEffect(() => {

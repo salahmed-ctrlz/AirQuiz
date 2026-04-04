@@ -15,7 +15,7 @@ import type { ConnectionStatus, ClientEvent, RoomState, Student, Question } from
 
 interface UseSocketOptions {
   onConnect?: () => void;
-  onJoined?: (studentId: string, roomState: RoomState) => void;
+  onJoined?: (studentId: string, roomState: RoomState, previousAnswers?: Record<string, string>) => void;
   onStartExam?: (questions: Question[], durationSeconds: number, endTime: string) => void;
   onExamStatus?: (active: boolean, remainingSeconds: number) => void;
   onExamEnded?: () => void;
@@ -26,10 +26,10 @@ interface UseSocketOptions {
   onRoomInfo?: (data: { room_id: string, code: string }) => void;
   onRoomList?: (rooms: { id: string, code: string, name: string }[]) => void;
 
-  // Legacy/Optional for compatibility
   onNewQuestion?: (question: Omit<Question, 'correctIndex'>, questionNumber: number, total: number) => void;
   onShowResult?: (correctIndex: number, yourAnswer?: number) => void;
   onExamExtended?: (durationSeconds: number, endTime: string) => void;
+  onRoomReset?: (message: string) => void;
 }
 
 interface UseSocketReturn {
@@ -116,33 +116,29 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       });
 
       // Backend events
-      socketRef.current.on('join_success', (data: any) => {
-        console.log('Join success:', data);
-        optionsRef.current.onJoined?.(data.student_id, {} as RoomState);
-      });
-
-      socketRef.current.on('restore_session', (data: any) => {
-        console.log('Session restored:', data);
-        optionsRef.current.onJoined?.(data.student_id, {} as RoomState);
-
-        // Store remaining seconds for use when exam_questions arrives
-        if (data.exam_active && data.remaining_seconds > 0) {
-          // Calculate end time from remaining seconds
-          const calculatedEndTime = new Date(Date.now() + data.remaining_seconds * 1000).toISOString();
-          sessionStorage.setItem('examEndTime', calculatedEndTime);
-          sessionStorage.setItem('examRemaining', String(data.remaining_seconds));
-          optionsRef.current.onExamStatus?.(true, data.remaining_seconds);
-        }
-      });
-
-      socketRef.current.on('start_exam', (data: any) => {
-        console.log('Start exam:', data);
-        const mappedQuestions = data.questions.map((q: any) => ({
+      const handleStartExam = (data: any) => {
+        console.log('Start exam received:', data);
+        const mappedQuestions = (data.questions || []).map((q: any) => ({
           ...q,
-          id: q.question_id // Map backend question_id to frontend id
+          id: q.question_id || q.id // Map backend question_id to frontend id
         }));
         optionsRef.current.onStartExam?.(mappedQuestions, data.duration_seconds, data.end_time);
-      });
+      };
+
+      socketRef.current.on('start_exam', handleStartExam);
+      socketRef.current.on('START_EXAM', handleStartExam);
+
+      const handleJoined = (data: any) => {
+        console.log('Join success (JOINED):', data);
+        optionsRef.current.onJoined?.(
+          data.studentId || data.student_id,
+          data.roomState,
+          data.previous_answers || data.previousAnswers
+        );
+      };
+
+      socketRef.current.on('join_success', handleJoined);
+      socketRef.current.on('JOINED', handleJoined);
 
       socketRef.current.on('exam_ended', () => {
         console.log('Exam ended');
@@ -168,10 +164,13 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         optionsRef.current.onStartExam?.(mappedQuestions, remaining, endTime);
       });
 
-      socketRef.current.on('full_results', (data: any) => {
+      const handleFullResults = (data: any) => {
         console.log('Full results:', data);
         optionsRef.current.onFullResults?.(data.results, data.final_score);
-      });
+      };
+
+      socketRef.current.on('full_results', handleFullResults);
+      socketRef.current.on('FULL_RESULTS', handleFullResults);
 
       socketRef.current.on('answer_acknowledged', (data: any) => {
         console.log('Answer acknowledged:', data);
@@ -188,7 +187,8 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
           score: s.score,
           isOnline: s.is_online,
           hasAnswered: s.has_answered,
-          answersCount: s.answers_count || 0
+          answersCount: s.answers_count || 0,
+          assignedCount: s.assigned_count || 0
         }));
         optionsRef.current.onDashboardUpdate?.(
           students,
@@ -217,6 +217,14 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         console.error('Socket.IO error:', data);
         optionsRef.current.onError?.(data.message);
       });
+
+      // Room reset — admin cleared the session
+      const handleRoomReset = (data: any) => {
+        console.log('Room was reset by admin:', data);
+        optionsRef.current.onRoomReset?.(data?.message || 'Session reset.');
+      };
+      socketRef.current.on('ROOM_RESET', handleRoomReset);
+      socketRef.current.on('room_reset', handleRoomReset);
 
     } catch (e) {
       console.error('Failed to create Socket.IO connection:', e);
@@ -269,10 +277,14 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         break;
 
       case 'ADMIN_START_EXAM':
-        socketRef.current.emit('admin_start_exam', {
+        const start_payload = {
           duration_minutes: event.payload.durationMinutes,
-          room_id: event.payload.room_id
-        });
+          room_id: event.payload.room_id,
+          questions_count: event.payload.questions_count,
+          shuffle: event.payload.shuffle,
+          capacity: event.payload.capacity
+        };
+        socketRef.current.emit('admin_start_exam', start_payload);
         break;
 
       case 'ADMIN_END_EXAM':

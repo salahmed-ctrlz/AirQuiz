@@ -16,13 +16,12 @@ from datetime import datetime
 import random
 import string
 
-from config import LOG_LEVEL
+from config import DATABASE_URL, DEFAULT_ROOM_CAPACITY, LOG_LEVEL
 from models import Student, Response
 from schemas import StudentStatus, DashboardUpdate
 from handlers import student as student_handlers
 from handlers import admin as admin_handlers
 from handlers import rooms as room_handlers
-
 
 class Room:
     """State for a single quiz room."""
@@ -30,12 +29,18 @@ class Room:
     def __init__(self, room_id: str):
         self.room_id = room_id
         self.code = ''.join(random.choices(string.digits, k=6))
+        self.capacity_limit: int = DEFAULT_ROOM_CAPACITY
+        self.questions_to_serve: int = 0  # 0 = All
+        self.shuffle_questions: bool = True
         self.exam_active: bool = False
         self.exam_start_time: Optional[datetime] = None
         self.exam_end_time: Optional[datetime] = None
         self.exam_duration_seconds: int = 0
         self.start_locked: bool = False
         self.current_exam_title: Optional[str] = None
+        # The exact question_ids (JSON ids) served for this exam session, in order.
+        # Set once at exam start; used by late joiners and reconnectors.
+        self.served_question_ids: list[int] = []
 
     def reset(self):
         self.exam_active = False
@@ -43,6 +48,7 @@ class Room:
         self.exam_end_time = None
         self.exam_duration_seconds = 0
         self.current_exam_title = None
+        self.served_question_ids = []
 
 
 class ConnectionManager:
@@ -96,15 +102,18 @@ class ConnectionManager:
             statuses = []
             for s in students:
                 resp_count = db.query(Response).filter(Response.student_id == s.id).count()
+                assigned_len = len(s.assigned_questions) if s.assigned_questions else 0
                 statuses.append(StudentStatus(
                     id=s.id,
                     first_name=s.first_name,
                     last_name=s.last_name,
+                    email=s.email,
                     group=s.group.value,
                     score=s.score,
                     is_online=s.is_online,
                     has_answered=(resp_count > 0),
-                    answers_count=resp_count
+                    answers_count=resp_count,
+                    assigned_count=assigned_len
                 ))
 
             room = self.get_room(room_id)

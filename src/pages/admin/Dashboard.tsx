@@ -76,6 +76,9 @@ export default function Dashboard() {
 
   // Exam Control State
   const [durationMinutes, setDurationMinutes] = useState(15);
+  const [questionsCount, setQuestionsCount] = useState(0); // 0 = All
+  const [shuffle, setShuffle] = useState(true);
+  const [capacity, setCapacity] = useState(30);
   const [examActive, setExamActive] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
@@ -211,11 +214,15 @@ export default function Dashboard() {
   const handleSelectExam = async (filename: string) => {
     if (examActive) return;
     try {
-      const res = await fetch(`${config.apiUrl}/api/exams/${filename}`);
+      const res = await fetch(`${config.apiUrl}/api/exams/${filename}`, {
+        cache: 'no-store' // always fresh — belt-and-suspenders alongside server no-cache headers
+      });
       if (!res.ok) throw new Error('Failed to fetch exam content');
       const data = await res.json();
-      setExam(data);
-      toast({ title: 'Exam Selected', description: `Loaded "${data.title}"` });
+      // CRITICAL FIX: selecting from library must also load questions into DB
+      // so that admin_start_exam can find them. Without this, the DB may have
+      // a different exam's questions from the last upload.
+      await uploadExamToBackend(data);
     } catch (e) {
       toast({ title: 'Error', description: 'Could not load the selected exam.', variant: 'destructive' });
     }
@@ -270,14 +277,20 @@ export default function Dashboard() {
 
     send({
       type: 'ADMIN_START_EXAM',
-      payload: { durationMinutes: d, room_id: roomId, exam_title: exam.title }
+      payload: { 
+        durationMinutes: d, 
+        room_id: roomId, 
+        exam_title: exam.title,
+        questions_count: questionsCount,
+        shuffle: shuffle
+      }
     });
 
     toast({
       title: 'Exam Started',
-      description: `Timer set for ${d} minutes in room ${roomId}.`,
+      description: `Timer set for ${d} minutes. Serving ${questionsCount || 'all'} questions.`,
     });
-  }, [exam, durationMinutes, send, toast, roomId]);
+  }, [exam, durationMinutes, questionsCount, shuffle, send, toast, roomId]);
 
   const handleEndExam = useCallback(() => {
     send({ type: 'ADMIN_END_EXAM', payload: { room_id: roomId } });
@@ -327,6 +340,18 @@ export default function Dashboard() {
     sessionStorage.removeItem('isAdmin');
     navigate('/admin');
   }, [navigate]);
+
+  // Switch Room: reset all per-room state before going back to room selector
+  const handleSwitchRoom = useCallback(() => {
+    setStudents([]);
+    setAnsweredCount(0);
+    setExamActive(false);
+    setExam(null);
+    setTimeRemaining(0);
+    setRoomCode('');
+    setRoomId('');
+    setInRoom(false);
+  }, []);
 
   // Drag and Drop Handlers
   const onDragStart = (e: React.DragEvent, filename: string) => {
@@ -485,7 +510,7 @@ export default function Dashboard() {
             <ConnectionStatus status={status} isDemo={isDemo} />
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setInRoom(false)}>
+            <Button variant="outline" size="sm" onClick={handleSwitchRoom}>
               <DoorOpen className="mr-2 h-4 w-4" /> Switch Room
             </Button>
             <div className="flex items-center gap-2">
@@ -603,6 +628,33 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
+            {/* Room Settings */}
+            <Card>
+              <CardHeader className="pb-3 bg-secondary/10">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <DoorOpen className="h-4 w-4" /> Room Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Capacity Limit: <span className="font-bold text-primary">{capacity}</span></Label>
+                    <Users className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <input 
+                    type="range" 
+                    min="5" 
+                    max="100" 
+                    step="5"
+                    value={capacity} 
+                    onChange={(e) => setCapacity(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                  <p className="text-[10px] text-muted-foreground italic">Restricts simultaneous joins to prevent lag.</p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Actions */}
             <Card>
               <CardHeader className="pb-3 bg-secondary/10">
@@ -707,6 +759,35 @@ export default function Dashboard() {
 
                     {!examActive && (
                       <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
+                        {/* Shuffling & Pooling */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 rounded-xl bg-secondary/30 border border-border/50">
+                          <div className="space-y-3">
+                            <Label className="flex items-center gap-2">
+                              <RefreshCw className="h-4 w-4 text-primary" /> Shuffling
+                            </Label>
+                            <div className="flex items-center gap-2">
+                              <Switch checked={shuffle} onCheckedChange={setShuffle} />
+                              <span className="text-sm text-muted-foreground">{shuffle ? 'Randomize Order' : 'Fixed Order'}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                              <FlaskConical className="h-4 w-4 text-primary" /> Questions Pool
+                            </Label>
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                type="number" 
+                                value={questionsCount} 
+                                onChange={(e) => setQuestionsCount(parseInt(e.target.value) || 0)}
+                                className="h-9 w-20"
+                                min={0}
+                                max={exam.questions.length}
+                              />
+                              <span className="text-xs text-muted-foreground">/ {exam.questions.length} total (0 = all)</span>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Controls */}
                         <div className="flex flex-col sm:flex-row gap-4 items-end">
                           <div className="space-y-2 flex-1 w-full">
@@ -723,6 +804,7 @@ export default function Dashboard() {
                             <Play className="mr-2 h-5 w-5" /> Start Exam
                           </Button>
                         </div>
+
 
                         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                           <Button onClick={() => handleStartExam(5)} variant="outline" className="h-10">
@@ -760,7 +842,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {students.map((student) => (
-                      <StudentCard key={student.id} student={student} totalQuestions={exam?.questions?.length} />
+                      <StudentCard key={student.id} student={student} totalQuestions={student.assignedCount || undefined} />
                     ))}
                   </div>
                 )}

@@ -26,12 +26,17 @@ class Student(Base):
     id = Column(Integer, primary_key=True, index=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
+    email = Column(String, nullable=True) # Added for cert delivery
     group = Column(SQLEnum(GroupEnum), nullable=False)
     score = Column(Integer, default=0)
     is_online = Column(Boolean, default=False)
     last_active = Column(DateTime, default=datetime.utcnow)
     room_id = Column(String, default="default", index=True) # New: Room isolation
-    
+    # Per-student unique exam: list of {question_id: int, options: [str]} dicts.
+    # Set once when the exam starts (or the student late-joins). Used for
+    # reconnect restoration and per-student results filtering.
+    assigned_questions = Column(JSON, nullable=True, default=None)
+
     # Relationship to responses
     responses = relationship("Response", back_populates="student")
 

@@ -159,14 +159,15 @@ def main():
     print(f"\n{CYAN}[4/4] Starting servers...{RESET}")
 
     # backend
-    backend_log = open(LOG_DIR / "backend.log", "w")
+    backend_log = open(LOG_DIR / "backend.log", "w", encoding="utf-8")
+    info(f"Launching Backend: {python_venv} -m uvicorn main:sio_app --host 0.0.0.0 --port 8000")
     backend_proc = subprocess.Popen(
-        [uvicorn_bin, "main:sio_app", "--host", "0.0.0.0", "--port", "8000"],
+        [python_venv, "-m", "uvicorn", "main:sio_app", "--host", "0.0.0.0", "--port", "8000"],
         cwd=str(BACKEND_DIR),
         stdout=backend_log, stderr=subprocess.STDOUT,
         env={**os.environ, "PYTHONIOENCODING": "utf-8"}
     )
-    info("Backend starting...")
+    info("Backend starting (check logs/backend.log for details)...")
 
     # frontend
     npm = "npm.cmd" if platform.system() == "Windows" else "npm"

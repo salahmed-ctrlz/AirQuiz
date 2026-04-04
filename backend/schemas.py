@@ -18,6 +18,7 @@ class MetadataResponse(BaseModel):
 class StudentJoin(BaseModel):
     first_name: str = Field(min_length=1)
     last_name: str = Field(min_length=1)
+    email: Optional[str] = None
     group: GroupEnum
 
 class StudentResponse(BaseModel):
@@ -74,11 +75,13 @@ class StudentStatus(BaseModel):
     id: int
     first_name: str
     last_name: str
+    email: Optional[str] = None
     group: str
     score: int
     is_online: bool
     has_answered: bool = False
-    answers_count: int = 0  # Number of questions answered
+    answers_count: int = 0       # Number of questions answered
+    assigned_count: int = 0      # Questions assigned to this specific student
 
 class DashboardUpdate(BaseModel):
     event: str = "UPDATE_ADMIN_DASHBOARD"

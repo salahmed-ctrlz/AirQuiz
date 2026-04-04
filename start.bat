@@ -1,5 +1,8 @@
 @echo off
 title AirQuiz Launcher
+
+:: Ensure we are running in the directory where this script is located (handles spaces in paths and Administrator execution)
+cd /d "%~dp0"
 echo.
 echo =============================================
 echo         AirQuiz - Classroom Assessment

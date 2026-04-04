@@ -2,14 +2,14 @@
 import type { Student, Question, Exam, RoomState } from './types';
 
 export const demoStudents: Student[] = [
-  { id: '1', firstName: 'Ahmed', lastName: 'Hassan', group: 'G1', isOnline: true, hasAnswered: true, score: 3, isCorrect: true },
-  { id: '2', firstName: 'Sara', lastName: 'Ali', group: 'G1', isOnline: true, hasAnswered: true, score: 2, isCorrect: false },
-  { id: '3', firstName: 'Mohamed', lastName: 'Ibrahim', group: 'G2', isOnline: true, hasAnswered: false, score: 4 },
-  { id: '4', firstName: 'Fatima', lastName: 'Omar', group: 'G2', isOnline: false, hasAnswered: false, score: 1 },
-  { id: '5', firstName: 'Youssef', lastName: 'Mahmoud', group: 'G3', isOnline: true, hasAnswered: true, score: 5, isCorrect: true },
-  { id: '6', firstName: 'Nour', lastName: 'Ahmed', group: 'G3', isOnline: true, hasAnswered: false, score: 2 },
-  { id: '7', firstName: 'Omar', lastName: 'Khaled', group: 'G4', isOnline: true, hasAnswered: true, score: 3, isCorrect: true },
-  { id: '8', firstName: 'Layla', lastName: 'Mostafa', group: 'G5', isOnline: false, hasAnswered: false, score: 0 },
+  { id: '1', firstName: 'Ahmed',   lastName: 'Hassan',   group: 'G1', isOnline: true,  hasAnswered: true,  score: 3, answersCount: 3, assignedCount: 5, isCorrect: true },
+  { id: '2', firstName: 'Sara',    lastName: 'Ali',      group: 'G1', isOnline: true,  hasAnswered: true,  score: 2, answersCount: 2, assignedCount: 5, isCorrect: false },
+  { id: '3', firstName: 'Mohamed', lastName: 'Ibrahim',  group: 'G2', isOnline: true,  hasAnswered: false, score: 4, answersCount: 0, assignedCount: 5 },
+  { id: '4', firstName: 'Fatima',  lastName: 'Omar',     group: 'G2', isOnline: false, hasAnswered: false, score: 1, answersCount: 0, assignedCount: 5 },
+  { id: '5', firstName: 'Youssef', lastName: 'Mahmoud',  group: 'G3', isOnline: true,  hasAnswered: true,  score: 5, answersCount: 5, assignedCount: 5, isCorrect: true },
+  { id: '6', firstName: 'Nour',    lastName: 'Ahmed',    group: 'G3', isOnline: true,  hasAnswered: false, score: 2, answersCount: 0, assignedCount: 5 },
+  { id: '7', firstName: 'Omar',    lastName: 'Khaled',   group: 'G4', isOnline: true,  hasAnswered: true,  score: 3, answersCount: 4, assignedCount: 5, isCorrect: true },
+  { id: '8', firstName: 'Layla',   lastName: 'Mostafa',  group: 'G5', isOnline: false, hasAnswered: false, score: 0, answersCount: 0, assignedCount: 5 },
 ];
 
 export const demoQuestions: Question[] = [

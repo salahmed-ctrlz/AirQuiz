@@ -26,6 +26,7 @@ export default function StudentLogin() {
   const navigate = useNavigate();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
   const [group, setGroup] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [manualCode, setManualCode] = useState('');
@@ -81,6 +82,7 @@ export default function StudentLogin() {
     sessionStorage.setItem('studentInfo', JSON.stringify({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
+      email: email.trim() || undefined,
       group,
       room_id: finalCode // This will be sent as 'room_id' payload which backend now checks as Code too.
     }));
@@ -190,6 +192,20 @@ export default function StudentLogin() {
                     className="h-12"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address (Optional)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="student@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  className="h-12"
+                />
+                <p className="text-[10px] text-muted-foreground">Used for certificate delivery.</p>
               </div>
 
               <div className="space-y-2">

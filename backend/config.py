@@ -25,3 +25,14 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
 # Logging — set to "debug" to enable Socket.IO verbose output
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
+
+# Room Settings
+DEFAULT_ROOM_CAPACITY = int(os.getenv("DEFAULT_ROOM_CAPACITY", "30"))
+CHAT_COOLDOWN_SECONDS = int(os.getenv("CHAT_COOLDOWN_SECONDS", "3"))
+
+# Testing Bypass
+JOKER_CREDENTIALS = {
+    "first_name": "TEST",
+    "last_name": "TEST"
+}
+

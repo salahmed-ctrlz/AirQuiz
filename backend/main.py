@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.orm import Session
 import socketio
 import json
@@ -48,6 +49,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ASGI app wrapping Socket.IO + FastAPI
 sio_app = socketio.ASGIApp(
@@ -109,10 +111,16 @@ async def get_metadata(db: Session = Depends(get_db)):
 
 @app.post("/api/exam/load")
 async def load_exam(exam: ExamData, db: Session = Depends(get_db)):
-    """Load exam into DB and persist JSON to disk."""
+    """Load exam into DB and persist JSON to disk.
+    
+    Accepts two question formats:
+    - { correct: "option text" } — used by ExamBuilder and all current exam files
+    - { correct_index: 0 }       — index into options array (legacy support)
+    Both are normalised to store the full correct-answer text in the DB.
+    """
     try:
-        # persist to disk
-        safe_title = "".join(c for c in exam.title if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+        # ── 1. Persist JSON to disk ──────────────────────────────────────────
+        safe_title = exam.title.replace('/', '_').replace('\\', '_').replace(':', '_').strip()
         filename = f"{safe_title.replace(' ', '_')}.json"
         file_path = os.path.join(EXAMS_DIR, filename)
 
@@ -121,28 +129,50 @@ async def load_exam(exam: ExamData, db: Session = Depends(get_db)):
             "questions": [q.model_dump() for q in exam.questions]
         }
         with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(exam_dict, f, indent=2)
+            json.dump(exam_dict, f, indent=2, ensure_ascii=False)
 
-        # refresh questions table
-        db.query(Question).delete()
+        # ── 2. Wipe DB questions + their responses ────────────────────────────
+        # Must delete responses FIRST or the FK constraint will raise an error.
+        # Questions are global (one active exam at a time), so wiping all is correct.
+        question_ids = [q.id for q in db.query(Question.id).all()]
+        if question_ids:
+            db.query(Response).filter(
+                Response.question_id.in_(question_ids)
+            ).delete(synchronize_session=False)
+        db.query(Question).delete(synchronize_session=False)
         db.commit()
 
+        # ── 3. Insert new questions ───────────────────────────────────────────
         for q_data in exam.questions:
+            # Resolve correct answer from 'correct' (text) or 'correct_index' (int)
+            correct_text = q_data.correct or ''
+            if not correct_text:
+                ci = getattr(q_data, 'correct_index', None)
+                if ci is not None:
+                    idx = int(ci)
+                    if 0 <= idx < len(q_data.options):
+                        correct_text = q_data.options[idx]
+
             db.add(Question(
                 question_id=q_data.id,
                 text=q_data.text,
                 options=q_data.options,
-                correct_answer=q_data.correct,
+                correct_answer=correct_text,
                 time_limit=q_data.time,
                 image_url=q_data.image,
                 exam_title=exam.title
             ))
         db.commit()
 
-        return {"status": "success", "message": f"Loaded {len(exam.questions)} questions from '{exam.title}'."}
+        return {
+            "status": "success",
+            "message": f"Loaded {len(exam.questions)} questions from '{exam.title}'."
+        }
     except Exception as e:
         db.rollback()
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.get("/api/students", response_model=list[StudentResponse])
@@ -194,13 +224,14 @@ async def export_csv(room_id: Optional[str] = None, db: Session = Depends(get_db
             room_id or "All"
         ])
         writer.writerow([])
-        writer.writerow(['Group', 'Last Name', 'First Name', 'Score', 'Status', 'Last Active'])
+        writer.writerow(['Group', 'Last Name', 'First Name', 'Email', 'Score', 'Status', 'Last Active'])
 
         for student in students:
             writer.writerow([
                 student.group.value if hasattr(student.group, 'value') else str(student.group),
                 student.last_name,
                 student.first_name,
+                student.email or "N/A",
                 student.score,
                 "Online" if student.is_online else "Offline",
                 student.last_active.strftime('%Y-%m-%d %H:%M:%S') if student.last_active else 'N/A'
@@ -245,13 +276,23 @@ async def list_exams():
 
 @app.get("/api/exams/{filename}")
 async def get_exam_content(filename: str):
-    """Get a specific exam file. Filename is sanitized to prevent path traversal."""
+    """Get a specific exam file. Filename is sanitized to prevent path traversal.
+    Returns with no-cache headers so the browser always gets the latest version.
+    """
+    from fastapi.responses import JSONResponse
     file_path = _safe_exam_path(filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Exam file not found")
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+        return JSONResponse(
+            content=data,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

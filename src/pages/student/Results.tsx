@@ -1,3 +1,10 @@
+/**
+ * AirQuiz — Student Results Page (Mobile-First).
+ * Score display with animated hero, collapsible per-question details.
+ *
+ * Author: Salah Eddine Medkour <medkoursalaheddine@gmail.com>
+ */
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,22 +37,14 @@ export default function Results() {
 
   useEffect(() => {
     const stored = sessionStorage.getItem('studentInfo');
-    const score = sessionStorage.getItem('finalScore');
-    const examResults = sessionStorage.getItem('examResults');
-    const examQuestions = sessionStorage.getItem('examQuestions');
+    const score   = sessionStorage.getItem('finalScore');
+    const rawResults  = sessionStorage.getItem('examResults');
+    const rawQuestions = sessionStorage.getItem('examQuestions');
 
-    if (stored) {
-      setStudentInfo(JSON.parse(stored));
-    }
-    if (score) {
-      setFinalScore(parseInt(score, 10));
-    }
-    if (examResults) {
-      setResults(JSON.parse(examResults));
-    }
-    if (examQuestions) {
-      setQuestions(JSON.parse(examQuestions));
-    }
+    if (stored)       setStudentInfo(JSON.parse(stored));
+    if (score)        setFinalScore(parseInt(score, 10));
+    if (rawResults)   setResults(JSON.parse(rawResults));
+    if (rawQuestions) setQuestions(JSON.parse(rawQuestions));
   }, []);
 
   const handleBackToHome = () => {
@@ -53,50 +52,78 @@ export default function Results() {
     navigate('/');
   };
 
-  const totalQuestions = Object.keys(results).length || questions.length;
-  const correctCount = Object.values(results).filter(r => r.is_correct).length;
+  // FIX: use questions.length (the exam's question count),
+  // not Object.keys(results).length (which only counts answered ones).
+  const totalQuestions = questions.length || Object.keys(results).length;
+  const correctCount   = Object.values(results).filter(r => r.is_correct).length;
+  const percentage     = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+  const scoreColor =
+    percentage >= 80 ? 'text-green-600' :
+    percentage >= 50 ? 'text-amber-500' :
+    'text-red-500';
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <main className="flex-1 p-4">
-        <div className="w-full max-w-2xl mx-auto space-y-6">
-          <div className="flex justify-center">
-            <img src={logo} alt="AirQuiz" className="h-12 w-auto" />
+        <div className="w-full max-w-2xl mx-auto space-y-5">
+          {/* Logo */}
+          <div className="flex justify-center pt-2">
+            <img src={logo} alt="AirQuiz" className="h-10 w-auto dark:brightness-0 dark:invert" />
           </div>
 
           <Card className="border-2 overflow-hidden">
-            {/* Celebration Header */}
+            {/* Celebration header */}
             <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-8 text-center">
               <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-primary/20 mb-4">
                 <Trophy className="h-10 w-10 text-primary" />
               </div>
               <h1 className="text-2xl font-bold text-foreground">Quiz Complete!</h1>
               {studentInfo && (
-                <p className="text-muted-foreground mt-2">
+                <p className="text-muted-foreground mt-1">
                   Great job, {studentInfo.firstName}!
                 </p>
               )}
             </div>
 
-            <CardContent className="p-6 space-y-6">
-              {/* Score Display */}
-              <div className="text-center py-6">
-                <p className="text-sm text-muted-foreground uppercase tracking-wide mb-2">
+            <CardContent className="p-5 space-y-5">
+              {/* Score display */}
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground uppercase tracking-wide mb-1">
                   Your Final Score
                 </p>
-                <p className="text-6xl font-bold text-primary tabular-nums">
+                <p className={`text-7xl font-black tabular-nums ${scoreColor}`}>
                   {finalScore}
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
                   {correctCount} / {totalQuestions} correct
                 </p>
+
+                {/* Visual progress bar */}
+                <div className="mt-4 mx-auto max-w-xs">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>0%</span>
+                    <span className="font-semibold">{percentage}%</span>
+                    <span>100%</span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${
+                        percentage >= 80 ? 'bg-green-500' :
+                        percentage >= 50 ? 'bg-amber-400' :
+                        'bg-red-400'
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Show/Hide Details Toggle */}
+              {/* Show/hide details toggle */}
               {Object.keys(results).length > 0 && (
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full h-12 text-base touch-manipulation"
                   onClick={() => setShowDetails(!showDetails)}
                 >
                   {showDetails ? (
@@ -107,20 +134,33 @@ export default function Results() {
                 </Button>
               )}
 
-              {/* Detailed Results */}
+              {/* Detailed per-question results */}
               {showDetails && Object.keys(results).length > 0 && (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                <div className="space-y-2.5 max-h-[60vh] overflow-y-auto scroll-momentum scrollbar-hide -mx-1 px-1">
                   {questions.map((q, index) => {
-                    const questionId = q.question_id || q.id;
-                    const result = results[questionId];
+                    // Exhaustive key matching — backend may use numeric or string keys
+                    const jsonId = q.question_id !== undefined ? q.question_id : q.id;
+                    const result =
+                      results[jsonId]          ||
+                      results[String(jsonId)]  ||
+                      results[q.id]            ||
+                      results[String(q.id)]    ||
+                      (q.question_id !== undefined
+                        ? results[q.question_id] || results[String(q.question_id)]
+                        : null);
+
                     if (!result) return null;
 
                     const isCorrect = result.is_correct;
 
                     return (
                       <Card
-                        key={questionId}
-                        className={`border-l-4 ${isCorrect ? 'border-l-green-500 bg-green-50/50' : 'border-l-red-500 bg-red-50/50'}`}
+                        key={jsonId}
+                        className={`border-l-4 ${
+                          isCorrect
+                            ? 'border-l-green-500 bg-green-50/50 dark:bg-green-950/20'
+                            : 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20'
+                        }`}
                       >
                         <CardHeader className="py-3 px-4">
                           <CardTitle className="text-sm font-medium flex items-start gap-2">
@@ -135,22 +175,25 @@ export default function Results() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="px-4 pb-3 pt-0 text-sm space-y-2">
-                          {/* Show the correct answer prominently */}
-                          <div className="flex items-center gap-2 p-2 rounded bg-green-100 border border-green-200">
+                          {/* Correct answer */}
+                          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
                             <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                            <span className="text-muted-foreground">Correct:</span>
-                            <span className="font-semibold text-green-700">{result.correct_answer}</span>
+                            <span className="text-muted-foreground text-xs">Correct:</span>
+                            <span className="font-semibold text-green-700 dark:text-green-400">{result.correct_answer}</span>
                           </div>
-
-                          {/* Show user's answer */}
-                          <div className={`flex items-center gap-2 p-2 rounded ${isCorrect ? 'bg-green-50 border border-green-100' : 'bg-red-100 border border-red-200'}`}>
+                          {/* User's answer */}
+                          <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
+                            isCorrect
+                              ? 'bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900'
+                              : 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800'
+                          }`}>
                             {isCorrect ? (
                               <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
                             ) : (
                               <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
                             )}
-                            <span className="text-muted-foreground">Your answer:</span>
-                            <span className={`font-semibold ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                            <span className="text-muted-foreground text-xs">Your answer:</span>
+                            <span className={`font-semibold ${isCorrect ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                               {result.user_answer || 'No answer'}
                             </span>
                           </div>
@@ -161,17 +204,17 @@ export default function Results() {
                 </div>
               )}
 
-              {/* Thank You Message */}
+              {/* Thank you message */}
               <div className="text-center p-4 rounded-xl bg-secondary/50">
-                <p className="text-foreground">
+                <p className="text-foreground text-sm">
                   Thank you for participating in today's quiz session!
                 </p>
               </div>
 
-              {/* Back Button */}
+              {/* Back button */}
               <Button
                 onClick={handleBackToHome}
-                className="w-full h-12"
+                className="w-full h-12 text-base touch-manipulation"
                 variant="outline"
               >
                 <Home className="mr-2 h-4 w-4" />
@@ -185,4 +228,3 @@ export default function Results() {
     </div>
   );
 }
-
