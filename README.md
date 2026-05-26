@@ -97,4 +97,4 @@ Contributions are welcome! Whether it's fixing CSS, adding translation keys, or 
 
 ---
 
-Built with ❤️ by [Salah Eddine Medkour](https://salahmed-ctrlz.github.io/salaheddine-medkour-portfolio/) · [GitHub](https://github.com/salahmed-ctrlz) · [LinkedIn](https://linkedin.com/in/salah-eddine-medkour)
+Built by [Salah Eddine Medkour]([https://salahmed-ctrlz.github.io/salaheddine-medkour-portfolio/](https://salaheddinemedkour.me/)) · [GitHub](https://github.com/salahmed-ctrlz) · [LinkedIn](https://linkedin.com/in/salah-eddine-medkour)
