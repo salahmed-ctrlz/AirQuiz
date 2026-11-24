@@ -12,7 +12,7 @@ from typing import Optional
 import auth
 import socketio
 from auth import require_admin
-from config import CORS_ORIGINS, EXAMS_DIR, STATIC_DIR
+from config import CORS_ORIGINS, STATIC_DIR
 from database import SessionLocal, get_db, init_db
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +22,7 @@ from fastapi.responses import Response as HttpResponse
 from fastapi.staticfiles import StaticFiles
 from manager import manager
 from models import Metadata, Question, Response, Student
+from network import lan_addresses
 from pydantic import BaseModel
 from schemas import ExamData, MetadataCreate, MetadataResponse
 from services import exam_service
@@ -35,7 +36,7 @@ VERSION = "1.1.0"
 async def lifespan(app: FastAPI):
     init_db()
     manager.setup_handlers(SessionLocal)
-    os.makedirs(EXAMS_DIR, exist_ok=True)
+    exam_service.seed_samples()
     auth.get_admin_password()  # make sure it exists before anyone asks
     task = asyncio.create_task(manager.expire_loop())
     yield
@@ -68,6 +69,27 @@ async def admin_login(body: LoginBody, request: Request):
         auth.record_failure(client)
         raise HTTPException(status_code=401, detail="Incorrect password")
     return {"token": auth.make_token()}
+
+
+@app.get("/api/server-info", dependencies=[Depends(require_admin)])
+async def server_info(request: Request):
+    port = request.url.port or 80
+    return {"version": VERSION, "port": port, "student_urls": [f"http://{ip}:{port}" for ip in lan_addresses()]}
+
+
+@app.get("/api/qr.svg")
+async def qr_svg(data: str):
+    """QR code as SVG so the teacher can project it for students (no image libs needed)."""
+    import io
+
+    import qrcode
+    import qrcode.image.svg
+    if len(data) > 300:
+        raise HTTPException(status_code=400, detail="Too long")
+    img = qrcode.make(data, image_factory=qrcode.image.svg.SvgPathImage, border=2)
+    buf = io.BytesIO()
+    img.save(buf)
+    return HttpResponse(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "max-age=86400"})
 
 
 @app.get("/api/admin/session", dependencies=[Depends(require_admin)])

@@ -1,0 +1,83 @@
+{
+  "title": "Sample Quiz",
+  "questions": [
+    {
+      "id": 1,
+      "text": "What is the capital of Algeria?",
+      "options": [
+        "Algiers",
+        "Oran",
+        "Constantine",
+        "Annaba"
+      ],
+      "correct": "Algiers",
+      "time": 30,
+      "image": null
+    },
+    {
+      "id": 2,
+      "text": "Which planet is closest to the Sun?",
+      "options": [
+        "Venus",
+        "Mercury",
+        "Mars",
+        "Earth"
+      ],
+      "correct": "Mercury",
+      "time": 30,
+      "image": null
+    },
+    {
+      "id": 3,
+      "text": "What is 12 × 12?",
+      "options": [
+        "124",
+        "132",
+        "144",
+        "156"
+      ],
+      "correct": "144",
+      "time": 30,
+      "image": null
+    },
+    {
+      "id": 4,
+      "text": "Which gas do plants absorb from the air?",
+      "options": [
+        "Oxygen",
+        "Nitrogen",
+        "Carbon dioxide",
+        "Hydrogen"
+      ],
+      "correct": "Carbon dioxide",
+      "time": 30,
+      "image": null
+    },
+    {
+      "id": 5,
+      "text": "ما هي عاصمة الجزائر؟",
+      "options": [
+        "وهران",
+        "الجزائر",
+        "قسنطينة",
+        "عنابة"
+      ],
+      "correct": "الجزائر",
+      "time": 30,
+      "image": null
+    },
+    {
+      "id": 6,
+      "text": "Which protocol is used to load web pages securely?",
+      "options": [
+        "FTP",
+        "HTTPS",
+        "SMTP",
+        "SSH"
+      ],
+      "correct": "HTTPS",
+      "time": 30,
+      "image": null
+    }
+  ]
+}

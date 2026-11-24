@@ -24,42 +24,36 @@ Built to solve a universal teaching nightmare: grading paper exams for hundreds 
 
 ## 🚀 Quick Start
 
-### One-Click Launcher (Recommended)
-AirQuiz comes with a robust cross-platform launcher that detects Python, sets up a virtual environment, and starts all services automatically.
+### For teachers: download and double-click
+1. Open the [latest release](https://github.com/salahmed-ctrlz/AirQuiz/releases/latest) and download **AirQuiz-windows.exe** (or the macOS / Linux file).
+2. Double-click it. Nothing to install — no Python, no Node.
+3. A window shows the **address and QR code for students** and your **teacher password**; the teacher page opens in your browser.
+4. Everything (database, exams, password) is saved in an `AirQuizData` folder next to the program. Copy that folder to back up or move to another computer.
 
+> Windows may show a SmartScreen warning for unsigned programs: choose *More info → Run anyway*.
+
+### From source (developers)
 ```bash
-# Windows
-start.bat
-
-# macOS / Linux
-chmod +x start.sh && ./start.sh
+python start.py          # builds the web app on first run, then starts everything on port 8000
+python start.py --dev    # hot-reload: Vite on 5173 + backend on 8000
+python scripts/build_exe.py   # build a one-file executable for your OS
 ```
+Requires Python 3.9+ and Node 18+. `start.bat` / `start.sh` are shortcuts for `start.py`.
 
-### Manual Setup
-
-If you prefer building from source:
-
+### Manual setup
 ```bash
-# 1. Backend
-cd backend
-python -m venv venv
-source venv/bin/activate    # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python main.py
-
-# 2. Frontend
-npm install
-npm run dev -- --host
+pip install -r backend/requirements.txt
+npm install && npm run build
+cd backend && python run.py
 ```
 
 **URLs:**
 
 | Address | Role |
 |---|---|
-| `http://localhost:5173` | Landing & Student Entry |
-| `http://localhost:5173/admin` | Teacher Dashboard |
-| `http://localhost:5173/about` | Story & Field Test Stats |
-| `http://localhost:8000` | Backend API |
+| `http://<teacher-ip>:8000` | Landing & student entry |
+| `http://localhost:8000/admin` | Teacher dashboard |
+| `http://localhost:8000/about` | Story & field-test stats |
 
 ## 🛠️ How it Works
 

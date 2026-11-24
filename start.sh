@@ -1,16 +1,4 @@
-#!/bin/bash
-
-echo ""
-echo "============================================="
-echo "       AirQuiz - Classroom Assessment"
-echo "============================================="
-echo ""
-
-# Check Python
-if ! command -v python3 &> /dev/null; then
-    echo "[ERROR] Python3 not found. Please install Python 3.9+"
-    exit 1
-fi
-
-# Run the Python launcher
-python3 start.py
+#!/usr/bin/env bash
+cd "$(dirname "$0")" || exit 1
+command -v python3 >/dev/null || { echo "Python 3.9+ is required."; exit 1; }
+exec python3 start.py "$@"
