@@ -15,7 +15,7 @@ from config import DEFAULT_ROOM_CAPACITY, LOG_LEVEL
 from handlers import admin as admin_handlers
 from handlers import rooms as room_handlers
 from handlers import student as student_handlers
-from models import Response, RoomState, Student
+from models import Question, Response, RoomState, Student
 from schemas import DashboardUpdate, StudentStatus
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -70,6 +70,10 @@ class ConnectionManager:
         self.rooms: Dict[str, Room] = {}
         self._session_factory = None
         self._pending_updates: set[str] = set()
+        self._room_sizes: dict[str, int] = {}
+        # hot-path caches so an answer costs one indexed write, not five queries
+        self._question_cache: dict[tuple, tuple] = {}   # (exam_title, qid) -> (pk, correct_answer)
+        self._assigned_cache: dict[int, dict] = {}      # student_id -> {qid: set(options)}
 
     # -- rooms ---------------------------------------------------------------
     def get_room(self, room_id: str) -> Room:
@@ -99,6 +103,39 @@ class ConnectionManager:
     @staticmethod
     def admin_channel(room_id: str) -> str:
         return f"admin:{room_id}"
+
+    def active_connections_in_room(self, room_id: str):
+        return [(sid, rid) for sid, rid in self.active_rooms.items() if rid == room_id]
+
+    # -- caches ----------------------------------------------------------------
+    def invalidate_questions(self):
+        self._question_cache.clear()
+
+    def question_lookup(self, db, title, qid):
+        key = (title, qid)
+        hit = self._question_cache.get(key)
+        if hit is None:
+            q = db.query(Question).filter(Question.question_id == qid)
+            if title:
+                q = q.filter(Question.exam_title == title)
+            row = q.first()
+            if not row:
+                return None
+            hit = self._question_cache[key] = (row.id, row.correct_answer)
+        return hit
+
+    def assigned_lookup(self, student):
+        cached = self._assigned_cache.get(student.id)
+        if cached is None:
+            cached = {i["question_id"]: set(i["options"]) for i in (student.assigned_questions or [])}
+            self._assigned_cache[student.id] = cached
+        return cached
+
+    def forget_assignment(self, student_id=None):
+        if student_id is None:
+            self._assigned_cache.clear()
+        else:
+            self._assigned_cache.pop(student_id, None)
 
     # -- persistence -----------------------------------------------------------
     def persist_room(self, room: Room):
@@ -179,7 +216,8 @@ class ConnectionManager:
         self._pending_updates.add(room_id)
 
         async def _run():
-            await asyncio.sleep(0.4)
+            # bigger rooms -> fewer, larger updates (teacher link stays ~50 KB/s at 300 students)
+            await asyncio.sleep(0.4 + 0.004 * self._room_sizes.get(room_id, 0))
             self._pending_updates.discard(room_id)
             db = self._session_factory()
             try:
@@ -219,6 +257,7 @@ class ConnectionManager:
                     assigned_count=len(s.assigned_questions) if s.assigned_questions else 0,
                 ))
 
+            self._room_sizes[room_id] = len(students)
             room = self.get_room(room_id)
             update = DashboardUpdate(
                 connected_count=sum(1 for s in students if s.is_online),

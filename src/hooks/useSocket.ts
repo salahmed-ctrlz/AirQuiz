@@ -85,9 +85,12 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       socketRef.current = io(config.socketUrl, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: 15,
-        reconnectionDelay: config.reconnection.baseDelay,
-        reconnectionDelayMax: config.reconnection.maxDelay,
+        // After a router hiccup 300 phones reconnect at once: keep trying
+        // forever, but spread the retries out so they don't stampede the host.
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 8000,
+        randomizationFactor: 1,
       });
 
       // Connection events

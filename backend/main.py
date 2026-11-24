@@ -5,6 +5,9 @@ License: MIT
 """
 
 import asyncio
+import gzip
+import hashlib
+import mimetypes
 import os
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -17,9 +20,8 @@ from database import SessionLocal, get_db, init_db
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.responses import Response as HttpResponse
-from fastapi.staticfiles import StaticFiles
 from manager import manager
 from models import Metadata, Question, Response, Student
 from network import lan_addresses
@@ -135,6 +137,7 @@ async def load_exam(exam: ExamData, db: Session = Depends(get_db)):
         db.add(Question(question_id=q.id, text=q.text, options=q.options, correct_answer=q.correct,
                         time_limit=q.time, image_url=q.image, exam_title=exam.title))
     db.commit()
+    manager.invalidate_questions()
     return {"status": "success", "message": f"Loaded {len(exam.questions)} questions from '{exam.title}'."}
 
 
@@ -155,6 +158,7 @@ async def reset_room(db: Session = Depends(get_db)):
         manager.persist_room(room)
     manager.active_connections.clear()
     manager.active_rooms.clear()
+    manager.forget_assignment()
     return {"status": "success"}
 
 
@@ -191,18 +195,49 @@ async def delete_exam(filename: str):
 
 
 # -- Frontend (built with `npm run build`) -------------------------------------
-if (STATIC_DIR / "index.html").exists():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+# 300 phones loading the app at once must not cost 300 gzip runs: every file is
+# read and compressed once, then served from memory. Hashed /assets are immutable.
+_static_cache: dict[str, tuple] = {}
+_COMPRESSIBLE = (".js", ".css", ".html", ".svg", ".json", ".webmanifest", ".map")
 
+
+def _load_static(rel: str):
+    hit = _static_cache.get(rel)
+    if hit:
+        return hit
+    target = (STATIC_DIR / rel).resolve()
+    if not target.is_file() or STATIC_DIR.resolve() not in target.parents:
+        return None
+    raw = target.read_bytes()
+    gz = gzip.compress(raw, 9) if rel.endswith(_COMPRESSIBLE) and len(raw) > 512 else None
+    media = mimetypes.guess_type(rel)[0] or "application/octet-stream"
+    if rel.endswith(".webmanifest"):
+        media = "application/manifest+json"
+    immutable = rel.startswith("assets/")
+    cc = "public, max-age=31536000, immutable" if immutable else "no-cache"
+    etag = '"' + hashlib.md5(raw).hexdigest() + '"'
+    hit = _static_cache[rel] = (raw, gz, media, cc, etag)
+    return hit
+
+
+if (STATIC_DIR / "index.html").exists():
     @app.get("/{path:path}", include_in_schema=False)
-    async def spa(path: str):
-        if path.startswith(("api/", "socket.io")):
+    async def spa(path: str, request: Request):
+        if path.startswith(("api/", "socket.io", "admin/export_csv")):
             raise HTTPException(status_code=404)
-        target = (STATIC_DIR / path).resolve()
-        if path and target.is_file() and STATIC_DIR.resolve() in target.parents:
-            headers = {"Cache-Control": "no-cache"} if path in ("sw.js", "registerSW.js", "manifest.webmanifest") else {}
-            return FileResponse(target, headers=headers)
-        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+        entry = _load_static(path) if path else None
+        if entry is None:
+            if "." in path.rsplit("/", 1)[-1]:      # a missing file, not an app route
+                raise HTTPException(status_code=404)
+            entry = _load_static("index.html")
+        raw, gz, media, cc, etag = entry
+        headers = {"Cache-Control": cc, "ETag": etag, "Vary": "Accept-Encoding"}
+        if request.headers.get("if-none-match") == etag:
+            return HttpResponse(status_code=304, headers=headers)
+        if gz is not None and "gzip" in request.headers.get("accept-encoding", ""):
+            headers["Content-Encoding"] = "gzip"
+            return HttpResponse(gz, media_type=media, headers=headers)
+        return HttpResponse(raw, media_type=media, headers=headers)
 else:
     @app.get("/")
     async def root():

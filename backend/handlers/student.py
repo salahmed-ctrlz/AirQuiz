@@ -165,27 +165,26 @@ def register(manager, db_session_factory):
             if not student:
                 return await reject("unknown_student")
             option = data.get("option")
-            assigned = next((i for i in (student.assigned_questions or []) if i["question_id"] == qid), None)
-            if not assigned or option not in assigned["options"]:
+            allowed = manager.assigned_lookup(student).get(qid)
+            if allowed is None or option not in allowed:
                 return await reject("invalid")
 
-            question = db.query(Question).filter(
-                Question.question_id == qid, Question.exam_title == room.current_exam_title
-            ).first() if room.current_exam_title else db.query(Question).filter(Question.question_id == qid).first()
-            if not question:
+            found = manager.question_lookup(db, room.current_exam_title, qid)
+            if not found:
                 return await reject("invalid")
+            question_pk, correct = found
 
-            is_correct = option == question.correct_answer
+            is_correct = option == correct
             resp = db.query(Response).filter(
-                Response.student_id == student.id, Response.question_id == question.id).first()
+                Response.student_id == student.id, Response.question_id == question_pk).first()
             if resp:
+                if resp.is_correct != is_correct:
+                    student.score += 1 if is_correct else -1
                 resp.selected_option, resp.is_correct, resp.answered_at = option, is_correct, datetime.utcnow()
             else:
-                db.add(Response(student_id=student.id, question_id=question.id,
+                db.add(Response(student_id=student.id, question_id=question_pk,
                                 selected_option=option, is_correct=is_correct))
-            db.flush()
-            student.score = db.query(Response).filter(
-                Response.student_id == student.id, Response.is_correct.is_(True)).count()
+                student.score += 1 if is_correct else 0
             student.last_active = datetime.utcnow()
             db.commit()
 

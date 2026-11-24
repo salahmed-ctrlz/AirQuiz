@@ -30,6 +30,18 @@ def _utf8_console():
             pass
 
 
+def _raise_fd_limit():
+    """macOS/Linux default to 256-1024 open files; every phone is a socket."""
+    try:
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        target = 10240 if hard == resource.RLIM_INFINITY else min(10240, hard)
+        if soft < target:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+    except (ImportError, ValueError, OSError):
+        pass  # Windows has no such limit
+
+
 def _port_free(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -79,6 +91,7 @@ def _banner(port: int):
 
 def main():
     _utf8_console()
+    _raise_fd_limit()
     port = _pick_port(config.BACKEND_PORT)
     if port != config.BACKEND_PORT:
         print(f"Port {config.BACKEND_PORT} is busy, using {port} instead.")
