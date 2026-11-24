@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Footer } from '@/components/Footer';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { adminLogin, getAdminToken } from '@/lib/api';
+import { adminLogin, getAdminToken, tryLocalLogin } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
 
@@ -16,7 +16,12 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (getAdminToken()) navigate('/admin/dashboard');
+    if (getAdminToken()) {
+      navigate('/admin/dashboard');
+      return;
+    }
+    // Sitting at the host computer? No password needed.
+    tryLocalLogin().then((ok) => ok && navigate('/admin/dashboard'));
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +45,7 @@ export default function AdminLogin() {
       <main className="flex-1 w-full max-w-sm mx-auto px-5 pt-14">
         <h1 className="text-3xl font-semibold tracking-tight">Teacher sign-in</h1>
         <p className="mt-2 text-muted-foreground">
-          The password is printed in the window where AirQuiz is running, and saved in{' '}
+          On the computer running AirQuiz you are signed in automatically. From another device, use the password shown in the AirQuiz window, also saved in{' '}
           <code className="rounded bg-muted px-1 py-0.5 text-sm">AirQuizData/admin_password.txt</code>.
         </p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">

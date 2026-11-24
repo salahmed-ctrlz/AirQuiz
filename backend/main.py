@@ -101,6 +101,34 @@ async def qr_svg(data: str):
     return HttpResponse(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "max-age=86400"})
 
 
+_LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+@app.get("/api/admin/local-login")
+async def admin_local_login(request: Request):
+    """Skip the password when the teacher is sitting at the host computer itself.
+    Only a connection from the loopback address qualifies, and never one that came
+    through a proxy, so students' phones can't use it."""
+    direct = request.client and request.client.host in _LOOPBACK
+    if not direct or "x-forwarded-for" in request.headers or "forwarded" in request.headers:
+        raise HTTPException(status_code=403, detail="Only available on the host computer")
+    return {"token": auth.make_token()}
+
+
+@app.post("/api/admin/shutdown", dependencies=[Depends(require_admin)])
+async def admin_shutdown():
+    """'Quit AirQuiz' button: stop the server (data is already committed)."""
+    import threading
+
+    def _stop():
+        import time
+        time.sleep(0.6)
+        os._exit(0)
+
+    threading.Thread(target=_stop, daemon=True).start()
+    return {"status": "stopping"}
+
+
 @app.get("/api/admin/session", dependencies=[Depends(require_admin)])
 async def admin_session():
     return {"ok": True}

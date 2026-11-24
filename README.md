@@ -27,10 +27,10 @@ Built to solve a universal teaching nightmare: grading paper exams for hundreds 
 ## Quick start
 
 ### For teachers: download and double-click
-1. Open the [latest release](https://github.com/salahmed-ctrlz/AirQuiz/releases/latest) and download **AirQuiz-windows.exe** (or the macOS / Linux file).
-2. Double-click it. Nothing to install — no Python, no Node.
-3. A window shows the **address and QR code for students** and your **teacher password**; the teacher page opens in your browser.
-4. Everything (database, exams, password) is saved in an `AirQuizData` folder next to the program. Copy that folder to back up or move to another computer.
+1. Open the [latest release](https://github.com/salahmed-ctrlz/AirQuiz/releases/latest) and download **AirQuiz-Setup.exe** (Windows; also available as a portable zip, plus macOS and Linux downloads).
+2. Run it. No Python, no Node. The installer also opens the Windows Firewall for AirQuiz.
+3. Start AirQuiz: a window shows the **address and QR code for students**, and the teacher page opens in your browser already signed in.
+4. Everything (database, exams, password) is saved in an `AirQuizData` folder (Documents for the installed version). Copy it to back up or move to another computer.
 
 > Windows may show a SmartScreen warning for unsigned programs: choose *More info → Run anyway*.
 
@@ -53,9 +53,8 @@ cd backend && python run.py
 
 | Address | Role |
 |---|---|
-| `http://<teacher-ip>:8000` | Landing & student entry |
-| `http://localhost:8000/admin` | Teacher dashboard |
-| `http://localhost:8000/about` | Story & field-test stats |
+| `http://<teacher-ip>` (or `http://airquiz.local`) | Student join page |
+| `http://localhost/admin` | Teacher dashboard (port 80 when free, else 8000+) |
 
 ## How it works
 
@@ -88,9 +87,13 @@ AirQuiz is not just a prototype; it's a field-tested production tool.
 - **Packaging**: PyInstaller one-file builds produced by GitHub Actions; the backend serves the built web app on a single port.
 - **PWA**: service worker via `vite-plugin-pwa` for offline app-shell reloads.
 
+## Networking and scale
+
+Works on a dumb router, a hotspot or a campus network with no internet. Students join by QR, address, or `airquiz.local`; a second QR can connect their phone to the Wi-Fi first. A simulated 300-student exam runs with all 6000 answers acknowledged (p95 17 ms) on a 4-core laptop. See [docs/NETWORKING.md](docs/NETWORKING.md) for numbers, router limits and why phones are not used as hosts.
+
 ## Security notes
 
-- Teacher actions need the teacher password (generated on first run, stored in `AirQuizData/admin_password.txt`). Exam files, which contain answers, are never served to students.
+- Teacher actions need the teacher password (generated on first run, stored in `AirQuizData/admin_password.txt`); the host computer itself is signed in automatically, loopback only. Exam files, which contain answers, are never served to students.
 - AirQuiz is built for a trusted classroom network and does not use HTTPS. Do not expose it to the internet.
 - Students are identified by name + group; a student who knows a classmate's details could rejoin as them. Use it for classroom assessment, not high-stakes identity verification.
 

@@ -42,3 +42,14 @@ def test_exam_validation(server, admin_headers):
 def test_legacy_correct_index(server, admin_headers):
     legacy = {"title": "Legacy", "questions": [{"id": 1, "text": "x", "options": ["a", "b"], "correct_index": 1}]}
     assert httpx.post(f"{server}/api/exam/load", json=legacy, headers=admin_headers).status_code == 200
+
+
+def test_local_login_only_from_loopback(server):
+    ok = httpx.get(f"{server}/api/admin/local-login")
+    assert ok.status_code == 200 and "token" in ok.json()
+    # anything that looks proxied is refused
+    assert httpx.get(f"{server}/api/admin/local-login", headers={"X-Forwarded-For": "10.0.0.9"}).status_code == 403
+
+
+def test_shutdown_requires_admin(server):
+    assert httpx.post(f"{server}/api/admin/shutdown").status_code == 401

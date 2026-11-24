@@ -54,3 +54,15 @@ export async function adminFetch(path: string, init: RequestInit = {}): Promise<
 
 export const adminDownloadUrl = (path: string): string =>
   `${config.apiUrl}${path}${path.includes('?') ? '&' : '?'}token=${encodeURIComponent(getAdminToken() ?? '')}`;
+
+/** On the host computer itself the server signs the teacher in without a password. */
+export async function tryLocalLogin(): Promise<boolean> {
+  try {
+    const res = await fetch(`${config.apiUrl}/api/admin/local-login`);
+    if (!res.ok) return false;
+    setAdminToken((await res.json()).token);
+    return true;
+  } catch {
+    return false;
+  }
+}

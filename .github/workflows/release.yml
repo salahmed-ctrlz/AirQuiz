@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag like v1.2.0 to publish a GitHub Release with one-click builds
-# for Windows, macOS and Linux. Can also be run by hand to get build artifacts.
+# Push a tag like v1.2.0 to publish a GitHub Release with ready-to-run builds.
+# Run by hand (Actions tab) to get the same files as build artifacts without releasing.
 on:
   push:
     tags: ["v*"]
@@ -10,42 +10,95 @@ on:
 permissions:
   contents: write
 
+env:
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            asset: AirQuiz-windows.exe
-            built: AirQuiz.exe
-          - os: macos-latest
-            asset: AirQuiz-macos
-            built: AirQuiz
-          - os: ubuntu-latest
-            asset: AirQuiz-linux
-            built: AirQuiz
-    runs-on: ${{ matrix.os }}
+  windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+        with: { node-version: 20, cache: npm }
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python scripts/build_exe.py
-      - name: Rename
-        shell: bash
-        run: mv "release/${{ matrix.built }}" "release/${{ matrix.asset }}"
+        with: { python-version: "3.12" }
+      - run: python scripts/build_exe.py --onedir
+      - name: Installer (adds the firewall rule + shortcuts)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $v = "${{ env.VERSION }}".TrimStart("v"); if ($v -eq "dev") { $v = "0.0.0" }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\airquiz.iss
+      - name: Portable zip
+        shell: pwsh
+        run: Compress-Archive -Path release\AirQuiz -DestinationPath release\AirQuiz-windows-portable.zip
+      - name: Smoke test the built program
+        shell: pwsh
+        run: |
+          $env:AIRQUIZ_DATA_DIR = "$PWD\smoke"; $env:BACKEND_PORT = "18080"
+          $p = Start-Process release\AirQuiz\AirQuiz.exe -ArgumentList "--no-browser" -PassThru
+          $ok = $false
+          foreach ($i in 1..30) { Start-Sleep 1; try { if ((Invoke-RestMethod http://127.0.0.1:18080/api/health).status -eq "ok") { $ok = $true; break } } catch {} }
+          Stop-Process $p -Force
+          if (-not $ok) { throw "AirQuiz.exe did not start" }
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset }}
-          path: release/${{ matrix.asset }}
-      - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/')
+          name: windows
+          path: |
+            release/AirQuiz-Setup.exe
+            release/AirQuiz-windows-portable.zip
+      - if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: release/${{ matrix.asset }}
+          files: |
+            release/AirQuiz-Setup.exe
+            release/AirQuiz-windows-portable.zip
+          generate_release_notes: true
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python scripts/build_exe.py --onedir
+      - name: Smoke test
+        run: |
+          AIRQUIZ_DATA_DIR="$PWD/smoke" BACKEND_PORT=18080 release/AirQuiz/AirQuiz --no-browser &
+          for i in $(seq 1 30); do sleep 1; curl -fs http://127.0.0.1:18080/api/health && break; done
+          curl -fs http://127.0.0.1:18080/api/health; kill %1
+      - name: Zip (keeps the executable bit)
+        run: cd release && zip -r -y AirQuiz-macos-apple-silicon.zip AirQuiz
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: release/AirQuiz-macos-apple-silicon.zip }
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/AirQuiz-macos-apple-silicon.zip
+          generate_release_notes: true
+
+  linux:
+    # Oldest supported runner so the binary works on older distributions too
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python scripts/build_exe.py --onedir
+      - name: Smoke test
+        run: |
+          AIRQUIZ_DATA_DIR="$PWD/smoke" BACKEND_PORT=18080 release/AirQuiz/AirQuiz --no-browser &
+          for i in $(seq 1 30); do sleep 1; curl -fs http://127.0.0.1:18080/api/health && break; done
+          curl -fs http://127.0.0.1:18080/api/health; kill %1
+      - run: tar -C release -czf release/AirQuiz-linux-x64.tar.gz AirQuiz
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: release/AirQuiz-linux-x64.tar.gz }
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/AirQuiz-linux-x64.tar.gz
           generate_release_notes: true
