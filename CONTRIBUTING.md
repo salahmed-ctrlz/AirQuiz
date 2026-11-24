@@ -2,28 +2,25 @@
 
 Thanks for considering contributing! Here's how to get started.
 
-## Development Setup
+## Development setup
 
 ```bash
-# Clone the repo
-git clone https://github.com/salahmed-ctrlz/airquiz-classroom.git
-cd airquiz-classroom
+git clone https://github.com/salahmed-ctrlz/AirQuiz.git
+cd AirQuiz
 
-# Option A: One-click start
-python start.py          # or: start.bat (Windows) / ./start.sh (Unix)
-
-# Option B: Manual start
-# Backend
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:sio_app --host 0.0.0.0 --port 8000
-
-# Frontend (new terminal)
-npm install
-npm run dev
+python start.py --dev     # Vite on :5173 + backend with reload on :8000
+python start.py           # production-style: build once, serve everything on :8000
 ```
+
+Checks that CI runs (please run them before opening a PR):
+
+```bash
+npm run lint && npx tsc --noEmit -p tsconfig.app.json && npm run build
+pip install -r backend/requirements-dev.txt
+ruff check backend && (cd backend && pytest)
+```
+
+Project layout: `src/` React app, `backend/` FastAPI + Socket.IO (`handlers/` events, `services/` logic, `tests/`), `scripts/build_exe.py` packaging, `docs/` guides.
 
 ## Making Changes
 
