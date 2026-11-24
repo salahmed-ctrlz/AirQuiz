@@ -95,6 +95,37 @@ def register(manager, db_session_factory):
 
     @sio.event
     @admin_only
+    async def admin_resume_exam(sid, data):
+        """Re-open an ended exam for a few more minutes WITHOUT clearing answers."""
+        room = manager.get_room(data["room_id"])
+        if room.exam_active or not room.exam_start_time:
+            return
+        minutes = max(1, min(int(data.get("minutes", 5)), 120))
+        room.exam_end_time = datetime.utcnow() + timedelta(minutes=minutes)
+        room.exam_active = True
+        room.results_revealed = False
+        manager.persist_room(room)
+        db = db_session_factory()
+        try:
+            for student_sid, rid in list(manager.active_rooms.items()):
+                if rid != room.room_id:
+                    continue
+                student = db.get(Student, int(manager.active_connections.get(student_sid, 0) or 0))
+                if not student:
+                    continue
+                if not student.assigned_questions:
+                    assign_exam(db, student, room)
+                await sio.emit("START_EXAM", StartExamEvent(
+                    duration_seconds=room.seconds_remaining(),
+                    end_time=room.end_time_iso(),
+                    questions=assigned_to_payload(student.assigned_questions),
+                ).model_dump(), room=student_sid)
+            await manager.broadcast_dashboard_update(db, room.room_id)
+        finally:
+            db.close()
+
+    @sio.event
+    @admin_only
     async def admin_reveal_results(sid, data):
         room = manager.get_room(data["room_id"])
         room.results_revealed = True

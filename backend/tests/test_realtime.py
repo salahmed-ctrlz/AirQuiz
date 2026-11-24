@@ -128,3 +128,30 @@ def test_exam_ends_itself_when_timer_expires(server, admin_headers):
         assert manager.rooms["expiry"].exam_active is False
         await admin.sio.disconnect(); await stu.sio.disconnect()
     asyncio.run(go())
+
+
+def test_resume_keeps_answers(server, admin_headers):
+    httpx.post(f"{server}/api/exam/load", json=EXAM, headers=admin_headers).raise_for_status()
+    token = admin_headers["Authorization"][7:]
+
+    async def go():
+        admin = Client(server); await admin.start()
+        await admin.sio.emit("admin_auth", {"token": token}); await admin.wait("admin_ok")
+        stu = Client(server); await stu.start()
+        await admin.sio.emit("join_room_admin", {"room_id": "resume"})
+        code = (await admin.wait("room_info"))["code"]
+        await stu.sio.emit("join", {"first_name": "R", "last_name": "S", "group": "G1", "room_id": code})
+        await stu.wait("JOINED")
+        await admin.sio.emit("admin_start_exam", {"room_id": "resume", "exam_title": "Live Exam", "durationMinutes": 5})
+        q = (await stu.wait("START_EXAM"))["questions"][0]
+        await stu.sio.emit("submit_answer", {"question_id": q["question_id"], "option": q["options"][0]})
+        await stu.wait("answer_acknowledged")
+        await admin.sio.emit("admin_end_exam", {"room_id": "resume"})
+        await stu.wait("exam_ended")
+        await admin.sio.emit("admin_resume_exam", {"room_id": "resume", "minutes": 5})
+        again = (await stu.wait("START_EXAM", n=2))["questions"]
+        assert [x["question_id"] for x in again][0] == q["question_id"]  # same exam, not a reshuffle
+        await stu.sio.emit("join", {"first_name": "R", "last_name": "S", "group": "G1", "room_id": code})
+        assert (await stu.wait("JOINED", n=2))["previous_answers"]  # answer survived
+        await admin.sio.disconnect(); await stu.sio.disconnect()
+    asyncio.run(go())
