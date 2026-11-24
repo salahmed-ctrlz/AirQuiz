@@ -1,0 +1,51 @@
+name: Release
+
+# Push a tag like v1.2.0 to publish a GitHub Release with one-click builds
+# for Windows, macOS and Linux. Can also be run by hand to get build artifacts.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            asset: AirQuiz-windows.exe
+            built: AirQuiz.exe
+          - os: macos-latest
+            asset: AirQuiz-macos
+            built: AirQuiz
+          - os: ubuntu-latest
+            asset: AirQuiz-linux
+            built: AirQuiz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/build_exe.py
+      - name: Rename
+        shell: bash
+        run: mv "release/${{ matrix.built }}" "release/${{ matrix.asset }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: release/${{ matrix.asset }}
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/${{ matrix.asset }}
+          generate_release_notes: true

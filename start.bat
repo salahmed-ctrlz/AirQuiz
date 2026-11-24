@@ -1,35 +1,9 @@
 @echo off
-title AirQuiz Launcher
-
-:: Ensure we are running in the directory where this script is located (handles spaces in paths and Administrator execution)
+title AirQuiz
 cd /d "%~dp0"
-echo.
-echo =============================================
-echo         AirQuiz - Classroom Assessment
-echo =============================================
-echo.
-
-:: Try py launcher first (most reliable on Windows with multiple Python versions)
-py -3.12 --version >nul 2>&1
-if not errorlevel 1 (
-    py -3.12 start.py
-    goto :done
-)
-
-py -3 --version >nul 2>&1
-if not errorlevel 1 (
-    py -3 start.py
-    goto :done
-)
-
-python --version >nul 2>&1
-if not errorlevel 1 (
-    python start.py
-    goto :done
-)
-
-echo [ERROR] Python not found. Please install Python 3.9-3.12
-echo https://www.python.org/downloads/release/python-3120/
-
-:done
+where py >nul 2>&1 && (py -3 start.py %* & goto :end)
+where python >nul 2>&1 && (python start.py %* & goto :end)
+echo Python was not found. Install it from https://www.python.org/downloads/ (tick "Add to PATH"),
+echo or download the ready-made AirQuiz.exe from the Releases page.
 pause
+:end

@@ -50,3 +50,4 @@ Thumbs.db
 data/
 build/
 *.spec.bak
+release/
