@@ -21,6 +21,7 @@ import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { StudentCard } from '@/components/StudentCard';
 import { ExamBuilder } from '@/components/ExamBuilder';
 import { useSocket } from '@/hooks/useSocket';
+import { adminFetch, adminDownloadUrl, getAdminToken, setAdminToken } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { demoStudents, demoExam } from '@/lib/demoData';
 import { config } from '@/lib/config';
@@ -84,6 +85,7 @@ export default function Dashboard() {
 
   // Hook for socket connection
   const { status, connect, send, requestRooms, isDemo, toggleDemo } = useSocket({
+    admin: true,
     // Handle standard data updates
     onDashboardUpdate: (updatedStudents, count, active, remaining) => {
       setStudents(updatedStudents);
@@ -110,8 +112,7 @@ export default function Dashboard() {
 
   // Check admin authentication
   useEffect(() => {
-    const isAdmin = sessionStorage.getItem('isAdmin');
-    if (!isAdmin) {
+    if (!getAdminToken()) {
       navigate('/admin');
     }
   }, [navigate]);
@@ -173,7 +174,7 @@ export default function Dashboard() {
   const fetchExams = async () => {
     setIsLoadingExams(true);
     try {
-      const res = await fetch(`${config.apiUrl}/api/exams`);
+      const res = await adminFetch('/api/exams');
       if (res.ok) {
         const data = await res.json();
         setAvailableExams(data);
@@ -189,7 +190,7 @@ export default function Dashboard() {
     try {
       // Upload to persistent storage
       // We need to send the full JSON to the load endpoint
-      const res = await fetch(`${config.apiUrl}/api/exam/load`, {
+      const res = await adminFetch('/api/exam/load', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(examData)
@@ -214,9 +215,7 @@ export default function Dashboard() {
   const handleSelectExam = async (filename: string) => {
     if (examActive) return;
     try {
-      const res = await fetch(`${config.apiUrl}/api/exams/${filename}`, {
-        cache: 'no-store' // always fresh — belt-and-suspenders alongside server no-cache headers
-      });
+      const res = await adminFetch(`/api/exams/${encodeURIComponent(filename)}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch exam content');
       const data = await res.json();
       // CRITICAL FIX: selecting from library must also load questions into DB
@@ -238,7 +237,7 @@ export default function Dashboard() {
     if (examActive) return;
     if (!confirm(`Delete "${title}" permanently?`)) return;
     try {
-      const res = await fetch(`${config.apiUrl}/api/exams/${filename}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/exams/${encodeURIComponent(filename)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
       // if the deleted exam was loaded, clear it
       if (exam?.title === title) setExam(null);
@@ -332,12 +331,12 @@ export default function Dashboard() {
 
   const handleExportCSV = useCallback(() => {
     // Navigate to REST endpoint for download
-    window.location.href = `${config.apiUrl}/admin/export_csv?room_id=${roomId}`;
+    window.location.href = adminDownloadUrl(`/admin/export_csv?room_id=${encodeURIComponent(roomId)}`);
     toast({ description: "Downloading CSV Report..." });
   }, [roomId]);
 
   const handleLogout = useCallback(() => {
-    sessionStorage.removeItem('isAdmin');
+    setAdminToken(null);
     navigate('/admin');
   }, [navigate]);
 
