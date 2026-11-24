@@ -19,6 +19,7 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run lint
+      - run: npm run build
 
   backend:
     name: Backend Checks
@@ -28,6 +29,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r backend/requirements.txt
-      - run: pip install ruff
+      - run: pip install -r backend/requirements-dev.txt
       - run: ruff check backend/
+      - run: python -m pytest -q
+        working-directory: backend
