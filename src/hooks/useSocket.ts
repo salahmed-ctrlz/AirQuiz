@@ -24,7 +24,7 @@ interface UseSocketOptions {
   onExamStatus?: (active: boolean, remainingSeconds: number) => void;
   onExamEnded?: () => void;
   onFullResults?: (results: Record<number, any>, finalScore: number) => void;
-  onAckSubmission?: (success: boolean) => void;
+  onAckSubmission?: (questionId: number) => void;
   onDashboardUpdate?: (students: Student[], answeredCount: number, examActive: boolean, timeRemaining: number) => void;
   onError?: (message: string) => void;
   onRoomInfo?: (data: { room_id: string, code: string }) => void;
@@ -40,7 +40,8 @@ interface UseSocketReturn {
   status: ConnectionStatus;
   connect: () => void;
   disconnect: () => void;
-  send: (event: ClientEvent) => void;
+  /** Returns false when the message could not be sent (offline). */
+  send: (event: ClientEvent) => boolean;
   requestRooms: () => void;
   isDemo: boolean;
   toggleDemo: () => void;
@@ -189,7 +190,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
 
       socketRef.current.on('answer_acknowledged', (data: any) => {
         console.log('Answer acknowledged:', data);
-        optionsRef.current.onAckSubmission?.(true);
+        optionsRef.current.onAckSubmission?.(Number(data?.question_id));
       });
 
       socketRef.current.on('dashboard_update', (data: any) => {
@@ -260,15 +261,9 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   }, []);
 
   const send = useCallback((event: ClientEvent) => {
-    if (isDemo) {
-      // Demo logic would go here
-      return;
-    }
+    if (isDemo) return true;
 
-    if (!socketRef.current?.connected) {
-      console.warn('Socket not connected, cannot send:', event);
-      return;
-    }
+    if (!socketRef.current?.connected) return false;
 
     switch (event.type) {
       case 'JOIN':
@@ -331,6 +326,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         });
         break;
     }
+    return true;
   }, [isDemo]);
 
   // Cleanup
