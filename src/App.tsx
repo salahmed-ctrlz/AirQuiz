@@ -11,17 +11,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Pages
 import Landing from "@/pages/Landing";
-import About from "@/pages/About";
+const About = lazy(() => import("@/pages/About"));
 import StudentLogin from "@/pages/student/Login";
-import WaitingRoom from "@/pages/student/WaitingRoom";
-import QuizActive from "@/pages/student/QuizActive";
-import Results from "@/pages/student/Results";
-import AdminLogin from "@/pages/admin/AdminLogin";
-import Dashboard from "@/pages/admin/Dashboard";
+const WaitingRoom = lazy(() => import("@/pages/student/WaitingRoom"));
+const QuizActive = lazy(() => import("@/pages/student/QuizActive"));
+const Results = lazy(() => import("@/pages/student/Results"));
+const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin"));
+const Dashboard = lazy(() => import("@/pages/admin/Dashboard"));
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import NotFound from "@/pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <Suspense fallback={<div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Loading…</div>}>
             <Routes>
               {/* Landing — role selector */}
               <Route path="/" element={<Landing />} />
@@ -54,6 +56,7 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
