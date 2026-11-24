@@ -5,7 +5,7 @@ import os
 import re
 import tempfile
 
-from config import EXAMS_DIR
+from config import BASE_DIR, EXAMS_DIR
 
 
 def safe_filename(title: str) -> str:
@@ -58,3 +58,16 @@ def save_exam(title: str, questions: list) -> str:
         json.dump({"title": title, "questions": questions}, f, indent=2, ensure_ascii=False)
     os.replace(tmp, os.path.join(EXAMS_DIR, filename))
     return filename
+
+
+def seed_samples() -> None:
+    """On a brand-new install, drop a sample quiz in so the library isn't empty."""
+    import shutil
+    os.makedirs(EXAMS_DIR, exist_ok=True)
+    if any(f.endswith(".json") for f in os.listdir(EXAMS_DIR)):
+        return
+    samples = os.path.join(BASE_DIR, "samples") if os.path.isdir(os.path.join(BASE_DIR, "samples")) \
+        else os.path.join(BASE_DIR, "backend", "samples")
+    if os.path.isdir(samples):
+        for name in os.listdir(samples):
+            shutil.copy(os.path.join(samples, name), os.path.join(EXAMS_DIR, name))
