@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSocket } from '@/hooks/useSocket';
 import { useToast } from '@/hooks/use-toast';
-import { useDebounce } from '@/hooks/useDebounce';
 import type { Question } from '@/lib/types';
 import { useTranslation } from '@/i18n/LanguageContext';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
@@ -44,8 +43,13 @@ export default function QuizActive() {
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Track which answers have been acknowledged by server to prevent re-sync storm
-  const syncedAnswersRef = useRef<Set<string>>(new Set());
+  // Answers the server has confirmed. Anything else is retried until confirmed,
+  // so a flaky Wi-Fi connection can never silently lose an answer.
+  const ackedRef = useRef<Set<string>>(new Set());
+  const answersRef = useRef<Record<number, string>>({});
+  const [pendingCount, setPendingCount] = useState(0);
+  const unsentCount = () =>
+    Object.keys(answersRef.current).filter(k => !ackedRef.current.has(k)).length;
 
   // Flag-for-review: persisted in sessionStorage so it survives reconnects
   const [flagged, setFlagged] = useState<Set<number>>(() => {
@@ -82,6 +86,7 @@ export default function QuizActive() {
             if (!merged[key]) {
               merged[key] = opt;
             }
+            if (merged[key] === opt) ackedRef.current.add(String(key));
           }
           sessionStorage.setItem('answers', JSON.stringify(merged));
           return merged;
@@ -96,7 +101,7 @@ export default function QuizActive() {
       sessionStorage.setItem('examQuestions', JSON.stringify(qs));
       sessionStorage.setItem('examEndTime', end);
       // Reset sync tracker on new exam
-      syncedAnswersRef.current = new Set();
+      ackedRef.current = new Set();
     },
     onExamStatus: (active, remaining) => {
       if (active && remaining > 0) {
@@ -117,7 +122,16 @@ export default function QuizActive() {
       sessionStorage.setItem('finalScore', String(finalScore));
       navigate('/results');
     },
-    onAckSubmission: () => { /* silent */ },
+    onAckSubmission: (questionId) => {
+      ackedRef.current.add(String(questionId));
+      setPendingCount(unsentCount());
+    },
+    onAnswerRejected: (questionId, reason) => {
+      if (reason === 'closed') setIsLocked(true);
+      // the server will never accept this one; stop retrying it
+      ackedRef.current.add(String(questionId));
+      setPendingCount(unsentCount());
+    },
     onError: (msg) => {
       toast({ title: 'Error', description: msg, variant: 'destructive' });
     },
@@ -174,10 +188,7 @@ export default function QuizActive() {
     if (storedAnswers) {
       const parsed = JSON.parse(storedAnswers);
       setAnswers(parsed);
-      // Mark locally-held answers as already synced (don't re-send on connect)
-      for (const key of Object.keys(parsed)) {
-        syncedAnswersRef.current.add(key);
-      }
+      answersRef.current = parsed;
     }
 
     connect();
@@ -195,37 +206,36 @@ export default function QuizActive() {
     return () => clearInterval(interval);
   }, [endTime]);
 
-  // ── Debounced answer submission ──────────────────────────────────────────────
-  const debouncedSubmit = useDebounce((questionId: number, option: string) => {
-    send({ type: 'SUBMIT_ANSWER', payload: { questionId, selectedOption: option } });
-    syncedAnswersRef.current.add(String(questionId));
-  }, 400);
-
+  // ── Answer submission: send immediately, retry until the server confirms ─────
   const handleSelectAnswer = useCallback((questionId: number, option: string) => {
     if (isLocked) return;
-    const newAnswers = { ...answers, [questionId]: option };
+    const newAnswers = { ...answersRef.current, [questionId]: option };
+    answersRef.current = newAnswers;
+    ackedRef.current.delete(String(questionId));
     setAnswers(newAnswers);
+    setPendingCount(unsentCount());
     sessionStorage.setItem('answers', JSON.stringify(newAnswers));
-    debouncedSubmit(questionId, option);
-  }, [isLocked, debouncedSubmit, answers]);
+    send({ type: 'SUBMIT_ANSWER', payload: { questionId, selectedOption: option } });
+  }, [isLocked, send]);
 
-  // ── Smart reconnect-resync (no storm) ───────────────────────────────────────
-  // Only re-submit answers that haven't been synced yet in this session.
-  // This covers the case where the student answered offline.
   useEffect(() => {
-    if (status === 'connected' && Object.keys(answers).length > 0) {
-      const unsynced = Object.entries(answers).filter(
-        ([qId]) => !syncedAnswersRef.current.has(qId)
-      );
-      if (unsynced.length > 0) {
-        console.log(`🔄 Re-syncing ${unsynced.length} unsynced answer(s)...`);
-        unsynced.forEach(([qId, opt]) => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  // Re-send unconfirmed answers on reconnect and every few seconds while connected
+  useEffect(() => {
+    if (status !== 'connected') return;
+    const flush = () => {
+      for (const [qId, opt] of Object.entries(answersRef.current)) {
+        if (!ackedRef.current.has(qId)) {
           send({ type: 'SUBMIT_ANSWER', payload: { questionId: parseInt(qId), selectedOption: opt as string } });
-          syncedAnswersRef.current.add(qId);
-        });
+        }
       }
-    }
-  }, [status]); // answers intentionally excluded to avoid loop
+    };
+    flush();
+    const id = setInterval(flush, 4000);
+    return () => clearInterval(id);
+  }, [status, send]);
 
   const handleNext = () => { if (currentIndex < questions.length - 1) setCurrentIndex(i => i + 1); };
   const handlePrev = () => { if (currentIndex > 0) setCurrentIndex(i => i - 1); };

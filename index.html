@@ -1,43 +1,30 @@
 <!doctype html>
-<!--
-  AirQuiz - Classroom Assessment Platform
-  Author: Salah Eddine Medkour
-  Copyright: 2024 Salah Eddine Medkour. All rights reserved.
-  GitHub: https://github.com/salahmed-ctrlz
-  LinkedIn: https://linkedin.com/in/salah-eddine-medkour
--->
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- Fonts: Inter (latin) + IBM Plex Sans Arabic -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#14151a" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
 
   <link rel="icon" type="image/png" href="/favicon.png" />
-  <title>AirQuiz - Classroom Assessment</title>
-  <meta name="description" content="Offline-first local network assessment platform for classrooms" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <title>AirQuiz — classroom quizzes without internet</title>
+  <meta name="description" content="Run live quizzes on a local network. Students join from their phones; no internet or accounts needed." />
   <meta name="author" content="Salah Eddine Medkour" />
-  <meta name="contact" content="medkoursalaheddine@gmail.com | +213551964262" />
-  <meta name="developer-portfolio" content="https://salahmed-ctrlz.github.io/salaheddine-medkour-portfolio/" />
-  <meta name="keywords" content="quiz, classroom, assessment, education, offline, real-time" />
-
-  <meta property="og:title" content="AirQuiz - Classroom Assessment" />
-  <meta property="og:description" content="Offline-first local network assessment platform for classrooms" />
+  <meta property="og:title" content="AirQuiz" />
+  <meta property="og:description" content="Run live quizzes on a local network. No internet needed." />
   <meta property="og:type" content="website" />
 
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:creator" content="@SalahEddineMed" />
+  <style>
+    /* paint something instantly while the JS bundle loads on slow phones */
+    html { background: #f7f6f2; }
+    @media (prefers-color-scheme: dark) { html { background: #14151a; } }
+    #boot { min-height: 100vh; display: grid; place-items: center; font: 500 15px system-ui, sans-serif; color: #6b6b6b; }
+  </style>
 </head>
-
 <body>
-  <div id="root"></div>
+  <div id="root"><div id="boot">Loading…</div></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
-
 </html>
