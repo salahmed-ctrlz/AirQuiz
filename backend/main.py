@@ -1,311 +1,187 @@
 """
 AirQuiz - Classroom Assessment Platform
-FastAPI Backend Server
-
-Author:    Salah Eddine Medkour <medkoursalaheddine@gmail.com>
-GitHub:    https://github.com/salahmed-ctrlz
-LinkedIn:  https://linkedin.com/in/salah-eddine-medkour
-Portfolio: https://salahmed-ctrlz.github.io/salaheddine-medkour-portfolio/
-License:   MIT
+FastAPI backend: REST API, Socket.IO and the built frontend on a single port.
+License: MIT
 """
 
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.gzip import GZipMiddleware
-from sqlalchemy.orm import Session
-import socketio
-import json
-import io
-import csv
+import asyncio
 import os
-from datetime import datetime
+from contextlib import asynccontextmanager
 from typing import Optional
 
-from config import CORS_ORIGINS, EXAMS_DIR, LOG_LEVEL
-from database import get_db, init_db, SessionLocal
-from models import Metadata, Student, Question, Response
-from schemas import MetadataCreate, MetadataResponse, ExamData, StudentResponse
+import auth
+import socketio
+from auth import require_admin
+from config import CORS_ORIGINS, EXAMS_DIR, STATIC_DIR
+from database import SessionLocal, get_db, init_db
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import Response as HttpResponse
+from fastapi.staticfiles import StaticFiles
 from manager import manager
+from models import Metadata, Question, Response, Student
+from pydantic import BaseModel
+from schemas import ExamData, MetadataCreate, MetadataResponse
+from services import exam_service
+from services.export_service import build_csv
+from sqlalchemy.orm import Session
+
+VERSION = "1.1.0"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/shutdown lifecycle."""
     init_db()
     manager.setup_handlers(SessionLocal)
     os.makedirs(EXAMS_DIR, exist_ok=True)
-    print(f"✅ AirQuiz backend ready — exams dir: {EXAMS_DIR}")
+    auth.get_admin_password()  # make sure it exists before anyone asks
+    task = asyncio.create_task(manager.expire_loop())
     yield
+    task.cancel()
 
 
-app = FastAPI(title="AirQuiz API", version="1.0.0", lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="AirQuiz API", version=VERSION, lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# ASGI app wrapping Socket.IO + FastAPI
-sio_app = socketio.ASGIApp(
-    manager.sio,
-    other_asgi_app=app,
-    socketio_path='socket.io'
-)
+# Socket.IO wraps the FastAPI app
+sio_app = socketio.ASGIApp(manager.sio, other_asgi_app=app, socketio_path="socket.io")
 
 
-# -- helpers --
-
-def _safe_exam_path(filename: str) -> str:
-    """Resolve exam path and reject directory traversal attempts."""
-    safe = os.path.basename(filename)
-    path = os.path.join(EXAMS_DIR, safe)
-    if not os.path.abspath(path).startswith(os.path.abspath(EXAMS_DIR)):
-        raise HTTPException(status_code=400, detail="Invalid filename")
-    return path
+class LoginBody(BaseModel):
+    password: str
 
 
-# ============= API Endpoints =============
-
-@app.get("/")
-async def root():
-    return {"status": "ok", "message": "AirQuiz API is running"}
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "version": VERSION}
 
 
-@app.post("/api/metadata", response_model=MetadataResponse)
+@app.post("/api/admin/login")
+async def admin_login(body: LoginBody, request: Request):
+    client = request.client.host if request.client else "?"
+    if not auth.login_allowed(client):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait a few minutes.")
+    if not auth.check_password(body.password.strip()):
+        auth.record_failure(client)
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    return {"token": auth.make_token()}
+
+
+@app.get("/api/admin/session", dependencies=[Depends(require_admin)])
+async def admin_session():
+    return {"ok": True}
+
+
+@app.post("/api/metadata", response_model=MetadataResponse, dependencies=[Depends(require_admin)])
 async def create_metadata(metadata: MetadataCreate, db: Session = Depends(get_db)):
-    """Create or update room metadata."""
-    try:
-        for key, value in metadata.model_dump().items():
-            existing = db.query(Metadata).filter(Metadata.key == key).first()
-            if existing:
-                existing.value = value
-            else:
-                db.add(Metadata(key=key, value=value))
-        db.commit()
-        return metadata
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    for key, value in metadata.model_dump().items():
+        row = db.query(Metadata).filter(Metadata.key == key).first()
+        if row:
+            row.value = value
+        else:
+            db.add(Metadata(key=key, value=value))
+    db.commit()
+    return metadata
 
 
 @app.get("/api/metadata", response_model=MetadataResponse)
 async def get_metadata(db: Session = Depends(get_db)):
-    try:
-        institution = db.query(Metadata).filter(Metadata.key == "institution_name").first()
-        subject = db.query(Metadata).filter(Metadata.key == "subject_name").first()
-        year = db.query(Metadata).filter(Metadata.key == "year").first()
-        return MetadataResponse(
-            institution_name=institution.value if institution else "",
-            subject_name=subject.value if subject else "",
-            year=year.value if year else ""
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    def val(key):
+        row = db.query(Metadata).filter(Metadata.key == key).first()
+        return row.value if row else ""
+    return MetadataResponse(institution_name=val("institution_name"),
+                            subject_name=val("subject_name"), year=val("year"))
 
 
-@app.post("/api/exam/load")
+@app.post("/api/exam/load", dependencies=[Depends(require_admin)])
 async def load_exam(exam: ExamData, db: Session = Depends(get_db)):
-    """Load exam into DB and persist JSON to disk.
-    
-    Accepts two question formats:
-    - { correct: "option text" } — used by ExamBuilder and all current exam files
-    - { correct_index: 0 }       — index into options array (legacy support)
-    Both are normalised to store the full correct-answer text in the DB.
-    """
-    try:
-        # ── 1. Persist JSON to disk ──────────────────────────────────────────
-        safe_title = exam.title.replace('/', '_').replace('\\', '_').replace(':', '_').strip()
-        filename = f"{safe_title.replace(' ', '_')}.json"
-        file_path = os.path.join(EXAMS_DIR, filename)
+    """Validate, save to the library and load into the DB. Only this exam's
+    questions are replaced, so other rooms keep running."""
+    if any(r.exam_active and r.current_exam_title == exam.title for r in manager.rooms.values()):
+        raise HTTPException(status_code=409, detail="This exam is running right now and cannot be reloaded.")
 
-        exam_dict = {
-            "title": exam.title,
-            "questions": [q.model_dump() for q in exam.questions]
-        }
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(exam_dict, f, indent=2, ensure_ascii=False)
+    exam_service.save_exam(exam.title, [q.model_dump(exclude={"correct_index"}) for q in exam.questions])
 
-        # ── 2. Wipe DB questions + their responses ────────────────────────────
-        # Must delete responses FIRST or the FK constraint will raise an error.
-        # Questions are global (one active exam at a time), so wiping all is correct.
-        question_ids = [q.id for q in db.query(Question.id).all()]
-        if question_ids:
-            db.query(Response).filter(
-                Response.question_id.in_(question_ids)
-            ).delete(synchronize_session=False)
-        db.query(Question).delete(synchronize_session=False)
-        db.commit()
-
-        # ── 3. Insert new questions ───────────────────────────────────────────
-        for q_data in exam.questions:
-            # Resolve correct answer from 'correct' (text) or 'correct_index' (int)
-            correct_text = q_data.correct or ''
-            if not correct_text:
-                ci = getattr(q_data, 'correct_index', None)
-                if ci is not None:
-                    idx = int(ci)
-                    if 0 <= idx < len(q_data.options):
-                        correct_text = q_data.options[idx]
-
-            db.add(Question(
-                question_id=q_data.id,
-                text=q_data.text,
-                options=q_data.options,
-                correct_answer=correct_text,
-                time_limit=q_data.time,
-                image_url=q_data.image,
-                exam_title=exam.title
-            ))
-        db.commit()
-
-        return {
-            "status": "success",
-            "message": f"Loaded {len(exam.questions)} questions from '{exam.title}'."
-        }
-    except Exception as e:
-        db.rollback()
-        import traceback; traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    old = [q.id for q in db.query(Question.id).filter(Question.exam_title == exam.title)]
+    if old:
+        db.query(Response).filter(Response.question_id.in_(old)).delete(synchronize_session=False)
+        db.query(Question).filter(Question.id.in_(old)).delete(synchronize_session=False)
+    for q in exam.questions:
+        db.add(Question(question_id=q.id, text=q.text, options=q.options, correct_answer=q.correct,
+                        time_limit=q.time, image_url=q.image, exam_title=exam.title))
+    db.commit()
+    return {"status": "success", "message": f"Loaded {len(exam.questions)} questions from '{exam.title}'."}
 
 
-
-@app.get("/api/students", response_model=list[StudentResponse])
+@app.get("/api/students", dependencies=[Depends(require_admin)])
 async def get_students(db: Session = Depends(get_db)):
-    return db.query(Student).all()
+    return [{"id": s.id, "first_name": s.first_name, "last_name": s.last_name,
+             "group": s.group.value, "score": s.score, "is_online": s.is_online} for s in db.query(Student).all()]
 
 
-@app.delete("/api/room/reset")
+@app.delete("/api/room/reset", dependencies=[Depends(require_admin)])
 async def reset_room(db: Session = Depends(get_db)):
     """Wipe all session data except metadata."""
-    try:
-        db.query(Response).delete()
-        db.query(Student).delete()
-        db.query(Question).delete()
-        db.commit()
-
-        manager.current_question_id = None
-        manager.answers_for_current_question = {}
-        manager.active_connections = {}
-
-        return {"status": "success", "message": "Room reset successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    db.query(Response).delete()
+    db.query(Student).delete()
+    db.commit()
+    for room in manager.rooms.values():
+        room.reset()
+        manager.persist_room(room)
+    manager.active_connections.clear()
+    manager.active_rooms.clear()
+    return {"status": "success"}
 
 
-@app.get("/admin/export_csv")
+@app.get("/admin/export_csv", dependencies=[Depends(require_admin)])
 async def export_csv(room_id: Optional[str] = None, db: Session = Depends(get_db)):
-    """Export results as CSV with UTF-8-BOM for Excel compatibility."""
-    try:
-        institution = db.query(Metadata).filter(Metadata.key == "institution_name").first()
-        subject = db.query(Metadata).filter(Metadata.key == "subject_name").first()
-        year = db.query(Metadata).filter(Metadata.key == "year").first()
-
-        query = db.query(Student)
-        if room_id:
-            query = query.filter(Student.room_id == room_id)
-        students = query.order_by(Student.group, Student.last_name).all()
-
-        output = io.StringIO()
-        output.write('\ufeff')  # BOM for Excel
-        writer = csv.writer(output)
-
-        writer.writerow(['Institution', 'Subject', 'Year', 'Room ID'])
-        writer.writerow([
-            institution.value if institution else "N/A",
-            subject.value if subject else "N/A",
-            year.value if year else "N/A",
-            room_id or "All"
-        ])
-        writer.writerow([])
-        writer.writerow(['Group', 'Last Name', 'First Name', 'Email', 'Score', 'Status', 'Last Active'])
-
-        for student in students:
-            writer.writerow([
-                student.group.value if hasattr(student.group, 'value') else str(student.group),
-                student.last_name,
-                student.first_name,
-                student.email or "N/A",
-                student.score,
-                "Online" if student.is_online else "Offline",
-                student.last_active.strftime('%Y-%m-%d %H:%M:%S') if student.last_active else 'N/A'
-            ])
-
-        output.seek(0)
-        ts = datetime.now().strftime('%H%M')
-        filename = f"Results_{room_id}_{ts}.csv" if room_id else f"All_Results_{ts}.csv"
-
-        return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    content, filename = build_csv(db, room_id)
+    return HttpResponse(content, media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
-@app.get("/api/exams")
+@app.get("/api/exams", dependencies=[Depends(require_admin)])
 async def list_exams():
-    """List available exam JSON files."""
-    if not os.path.exists(EXAMS_DIR):
-        return []
-
-    exams = []
-    for filename in sorted(os.listdir(EXAMS_DIR)):
-        if not filename.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(EXAMS_DIR, filename), 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                exams.append({
-                    "filename": filename,
-                    "title": data.get("title", filename.replace("_", " ").replace(".json", "")),
-                    "questionCount": len(data.get("questions", []))
-                })
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"Skipping malformed exam file {filename}: {e}")
-            continue
-    return exams
+    return exam_service.list_exams()
 
 
-@app.get("/api/exams/{filename}")
+@app.get("/api/exams/{filename}", dependencies=[Depends(require_admin)])
 async def get_exam_content(filename: str):
-    """Get a specific exam file. Filename is sanitized to prevent path traversal.
-    Returns with no-cache headers so the browser always gets the latest version.
-    """
-    from fastapi.responses import JSONResponse
-    file_path = _safe_exam_path(filename)
-    if not os.path.exists(file_path):
+    path = exam_service.resolve(filename)
+    if not path or not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Exam file not found")
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return JSONResponse(
-            content=data,
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                "Pragma": "no-cache",
-            }
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(exam_service.read_exam(path), headers={"Cache-Control": "no-store"})
+    except (OSError, ValueError):
+        raise HTTPException(status_code=500, detail="Exam file is unreadable")
 
 
-@app.delete("/api/exams/{filename}")
+@app.delete("/api/exams/{filename}", dependencies=[Depends(require_admin)])
 async def delete_exam(filename: str):
-    """Delete an exam file from the library. Path-traversal safe."""
-    file_path = _safe_exam_path(filename)
-    if not os.path.exists(file_path):
+    path = exam_service.resolve(filename)
+    if not path or not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Exam file not found")
-    try:
-        os.remove(file_path)
-        return {"status": "deleted", "filename": filename}
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    os.remove(path)
+    return {"status": "deleted", "filename": filename}
 
+
+# -- Frontend (built with `npm run build`) -------------------------------------
+if (STATIC_DIR / "index.html").exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa(path: str):
+        if path.startswith(("api/", "socket.io")):
+            raise HTTPException(status_code=404)
+        target = (STATIC_DIR / path).resolve()
+        if path and target.is_file() and STATIC_DIR.resolve() in target.parents:
+            headers = {"Cache-Control": "no-cache"} if path in ("sw.js", "registerSW.js", "manifest.webmanifest") else {}
+            return FileResponse(target, headers=headers)
+        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+else:
+    @app.get("/")
+    async def root():
+        return {"status": "ok", "message": "AirQuiz API is running (frontend not built)"}

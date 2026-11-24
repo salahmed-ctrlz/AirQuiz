@@ -3,10 +3,9 @@ AirQuiz - Database setup
 SQLite via SQLAlchemy with session management.
 """
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-
 from config import DATABASE_URL
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 engine = create_engine(
     DATABASE_URL,
