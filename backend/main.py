@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from fastapi.responses import Response as HttpResponse
 from manager import manager
 from models import Metadata, Question, Response, Student
-from network import lan_addresses
+from network import MDNS_NAME, current_wifi_ssid, lan_addresses
 from pydantic import BaseModel
 from schemas import ExamData, MetadataCreate, MetadataResponse
 from services import exam_service
@@ -76,7 +76,14 @@ async def admin_login(body: LoginBody, request: Request):
 @app.get("/api/server-info", dependencies=[Depends(require_admin)])
 async def server_info(request: Request):
     port = request.url.port or 80
-    return {"version": VERSION, "port": port, "student_urls": [f"http://{ip}:{port}" for ip in lan_addresses()]}
+    suffix = "" if port == 80 else f":{port}"
+    return {
+        "version": VERSION,
+        "port": port,
+        "student_urls": [f"http://{ip}{suffix}" for ip in lan_addresses()],
+        "friendly_url": f"http://{MDNS_NAME}.local{suffix}",
+        "wifi_ssid": await asyncio.to_thread(current_wifi_ssid),
+    }
 
 
 @app.get("/api/qr.svg")

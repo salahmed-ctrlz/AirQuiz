@@ -33,7 +33,8 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{(DATA_DIR / 'airquiz.db').
 
 # Server
 BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
-BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8000"))
+# 0 = automatic: port 80 (so students type no ":8000"), else 8000, 8001, ...
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "0"))
 
 # CORS — comma-separated origins, or "*" for any
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
