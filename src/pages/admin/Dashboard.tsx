@@ -21,6 +21,7 @@ import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { StudentCard } from '@/components/StudentCard';
 import { ExamBuilder } from '@/components/ExamBuilder';
 import { useSocket } from '@/hooks/useSocket';
+import { JoinPanel } from '@/components/JoinPanel';
 import { adminFetch, adminDownloadUrl, getAdminToken, setAdminToken } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { demoStudents, demoExam } from '@/lib/demoData';
@@ -79,9 +80,12 @@ export default function Dashboard() {
   const [durationMinutes, setDurationMinutes] = useState(15);
   const [questionsCount, setQuestionsCount] = useState(0); // 0 = All
   const [shuffle, setShuffle] = useState(true);
-  const [capacity, setCapacity] = useState(30);
+  const [capacity, setCapacity] = useState(100);
   const [examActive, setExamActive] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
+
+  // Demo data is a developer aid; hide it unless asked for with ?demo
+  const showDemoSwitch = config.demoMode || new URLSearchParams(window.location.search).has('demo');
 
   // Hook for socket connection
   const { status, connect, send, requestRooms, isDemo, toggleDemo } = useSocket({
@@ -281,7 +285,8 @@ export default function Dashboard() {
         room_id: roomId, 
         exam_title: exam.title,
         questions_count: questionsCount,
-        shuffle: shuffle
+        shuffle: shuffle,
+        capacity
       }
     });
 
@@ -289,7 +294,7 @@ export default function Dashboard() {
       title: 'Exam Started',
       description: `Timer set for ${d} minutes. Serving ${questionsCount || 'all'} questions.`,
     });
-  }, [exam, durationMinutes, questionsCount, shuffle, send, toast, roomId]);
+  }, [exam, durationMinutes, questionsCount, shuffle, capacity, send, toast, roomId]);
 
   const handleEndExam = useCallback(() => {
     send({ type: 'ADMIN_END_EXAM', payload: { room_id: roomId } });
@@ -304,7 +309,7 @@ export default function Dashboard() {
     toast({
       title: "Exam Extended",
       description: `Added ${minutes} minutes to the exam.`,
-      className: "bg-green-50 border-green-200 text-green-900"
+      className: "bg-success/10 border-success/40 text-success"
     });
   }, [send, toast, roomId]);
 
@@ -409,78 +414,57 @@ export default function Dashboard() {
     return `${m}m ${s}s`;
   };
 
-  // ROOM SELECTION OVERLAY
+  // ROOM SELECTION
   if (!inRoom) {
+    const canOpen = selectedRoom && selectedRoom !== 'new' ? true : roomInput.trim().length > 0;
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl border-t-4 border-t-primary">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center">
-                <DoorOpen className="h-10 w-10 text-primary" />
+      <div className="min-h-[100dvh] bg-background">
+        <header className="flex items-center justify-between px-5 py-4">
+          <img src={logo} alt="AirQuiz" className="h-9 w-auto dark:brightness-0 dark:invert" />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Button variant="ghost" size="sm" onClick={handleLogout}>Sign out</Button>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-md px-5 pt-10">
+          <h1 className="text-3xl font-semibold tracking-tight">Start a session</h1>
+          <p className="mt-2 text-muted-foreground">
+            A room is one class sitting an exam. Students join it with a 6-digit code.
+          </p>
+
+          {activeRooms.length > 0 && (
+            <div className="mt-8 space-y-2">
+              <Label>Resume a room</Label>
+              <div className="flex flex-wrap gap-2">
+                {activeRooms.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => { setSelectedRoom(r.id); setRoomInput(''); }}
+                    className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${selectedRoom === r.id ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-accent'}`}
+                  >
+                    {r.name}
+                  </button>
+                ))}
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold">Manager Access</CardTitle>
-            <CardDescription className="text-lg">
-              Manage an active room or create a new one.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-md">Select Room</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={handleRefreshRooms}
-                  title="Refresh List"
-                >
-                  <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
+          )}
 
-              <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-                <SelectTrigger className="h-14 text-lg">
-                  <SelectValue placeholder="-- Select Active Room --" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeRooms.map(r => (
-                    <SelectItem key={r.id} value={r.id} className="text-md">
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                  {activeRooms.length === 0 && (
-                    <div className="p-2 text-center text-muted-foreground text-sm">No active rooms</div>
-                  )}
-                  <SelectItem value="new" className="text-md font-semibold text-primary">
-                    + Create New Room
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="mt-6 space-y-2">
+            <Label htmlFor="roomName">{activeRooms.length > 0 ? 'Or create a new room' : 'Room name'}</Label>
+            <Input
+              id="roomName"
+              placeholder="e.g. Networks-G2"
+              value={roomInput}
+              onChange={(e) => { setRoomInput(e.target.value); setSelectedRoom('new'); }}
+              onKeyDown={(e) => e.key === 'Enter' && canOpen && handleEnterRoom()}
+              className="h-12"
+            />
+          </div>
 
-            {selectedRoom === 'new' && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label className="text-md">New Room Name</Label>
-                <Input
-                  placeholder="e.g. Biology-101"
-                  value={roomInput}
-                  onChange={(e) => setRoomInput(e.target.value)}
-                  className="text-lg h-14"
-                  onKeyDown={(e) => e.key === 'Enter' && handleEnterRoom()}
-                />
-              </div>
-            )}
-
-            <Button onClick={handleEnterRoom} className="w-full h-14 text-lg font-semibold shadow-lg" disabled={!selectedRoom || (selectedRoom === 'new' && !roomInput.trim())}>
-              Open Dashboard <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button variant="ghost" onClick={handleLogout} className="w-full">
-              Logout
-            </Button>
-          </CardContent>
-        </Card>
+          <Button onClick={handleEnterRoom} className="mt-6 h-12 w-full text-base" disabled={!canOpen}>
+            Open room <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+          </Button>
+        </main>
       </div>
     );
   }
@@ -488,23 +472,17 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur shadow-sm">
+      <header className="sticky top-0 z-10 border-b border-border bg-background">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <img src={logo} alt="AirQuiz" className="h-14 w-auto" />
+            <img src={logo} alt="AirQuiz" className="h-9 w-auto dark:brightness-0 dark:invert" />
 
             <div className="hidden md:flex flex-col">
               <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Current Room</span>
               <span className="font-bold text-lg">{roomId}</span>
             </div>
 
-            {/* Room Code Display */}
-            <div className="hidden md:flex flex-col bg-primary/10 px-4 py-1 rounded-md border border-primary/20">
-              <span className="text-[10px] text-primary uppercase tracking-widest font-bold text-center">Join Code</span>
-              <span className="font-mono text-2xl font-black text-primary tracking-widest text-center">
-                {roomCode || '---'}
-              </span>
-            </div>
+            <JoinPanel code={roomCode} />
 
             <ConnectionStatus status={status} isDemo={isDemo} />
           </div>
@@ -512,13 +490,13 @@ export default function Dashboard() {
             <Button variant="outline" size="sm" onClick={handleSwitchRoom}>
               <DoorOpen className="mr-2 h-4 w-4" /> Switch Room
             </Button>
-            <div className="flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-muted-foreground" />
-              <Label htmlFor="demo-mode" className="text-sm text-muted-foreground">
-                Demo
-              </Label>
-              <Switch id="demo-mode" checked={isDemo} onCheckedChange={toggleDemo} />
-            </div>
+            {showDemoSwitch && (
+              <div className="flex items-center gap-2">
+                <FlaskConical className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="demo-mode" className="text-sm text-muted-foreground">Demo</Label>
+                <Switch id="demo-mode" checked={isDemo} onCheckedChange={toggleDemo} />
+              </div>
+            )}
             <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
@@ -571,7 +549,7 @@ export default function Dashboard() {
                         {!examActive && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDeleteExam(ex.filename, ex.title); }}
-                            className="p-1.5 rounded-md text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-1.5 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
                             title={`Delete ${ex.title}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -637,19 +615,19 @@ export default function Dashboard() {
               <CardContent className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-xs">Capacity Limit: <span className="font-bold text-primary">{capacity}</span></Label>
+                    <Label className="text-xs">Max students: <span className="font-bold text-primary">{capacity}</span></Label>
                     <Users className="h-3 w-3 text-muted-foreground" />
                   </div>
                   <input 
                     type="range" 
                     min="5" 
-                    max="100" 
+                    max="300" 
                     step="5"
                     value={capacity} 
                     onChange={(e) => setCapacity(parseInt(e.target.value))}
                     className="w-full h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                   />
-                  <p className="text-[10px] text-muted-foreground italic">Restricts simultaneous joins to prevent lag.</p>
+                  <p className="text-[10px] text-muted-foreground italic">New students are turned away once the room is full. Returning students can always rejoin.</p>
                 </div>
               </CardContent>
             </Card>
@@ -665,7 +643,7 @@ export default function Dashboard() {
                   Download Report (CSV)
                 </Button>
                 <div className="h-px bg-border my-2" />
-                <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 text-xs" onClick={handleResetRoom} disabled={examActive}>
+                <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 text-xs" onClick={handleResetRoom} disabled={examActive}>
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Reset Room (Wipe Data)
                 </Button>
@@ -693,8 +671,8 @@ export default function Dashboard() {
               <Card className="bg-card">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-emerald-500" />
+                    <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-success" />
                     </div>
                     <div>
                       <p className="text-3xl font-bold tracking-tight">{answeredCount}</p>
@@ -738,14 +716,14 @@ export default function Dashboard() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-center p-8 border rounded-lg bg-background">
                           <div className="text-center space-y-2">
-                            <div className="h-3 w-3 bg-green-500 rounded-full mx-auto animate-ping" />
+                            <div className="h-3 w-3 bg-success rounded-full mx-auto animate-ping" />
                             <p className="text-sm font-medium">Exam is Live</p>
                             <p className="text-xs text-muted-foreground">Monitor student progress below</p>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                          <Button onClick={() => handleExtendExam(5)} variant="outline" className="border-amber-500/50 hover:bg-amber-50 text-amber-700">
+                          <Button onClick={() => handleExtendExam(5)} variant="outline" className="border-warning/40 hover:bg-warning/10 text-warning">
                             <Plus className="mr-2 h-4 w-4" />
                             +5 Mins
                           </Button>
@@ -806,10 +784,10 @@ export default function Dashboard() {
 
 
                         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                          <Button onClick={() => handleStartExam(5)} variant="outline" className="h-10">
-                            Resume (+5m)
+                          <Button onClick={() => send({ type: 'ADMIN_RESUME_EXAM', payload: { room_id: roomId, minutes: 5 } })} variant="outline" className="h-10">
+                            Reopen for 5 more minutes
                           </Button>
-                          <Button onClick={handleRevealResults} variant="secondary" className="h-10 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200">
+                          <Button onClick={handleRevealResults} variant="secondary" className="h-10 bg-success/10 text-success hover:bg-success/10 border-success/40">
                             <Eye className="mr-2 h-4 w-4" /> Distribute Results
                           </Button>
                         </div>
@@ -875,8 +853,8 @@ export default function Dashboard() {
 function ActivityIndicator() {
   return (
     <span className="relative flex h-3 w-3">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+      <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
     </span>
   );
 }

@@ -15,7 +15,6 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Pages
-import Landing from "@/pages/Landing";
 const About = lazy(() => import("@/pages/About"));
 import StudentLogin from "@/pages/student/Login";
 const WaitingRoom = lazy(() => import("@/pages/student/WaitingRoom"));
@@ -39,7 +38,7 @@ const App = () => (
             <Suspense fallback={<div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Loading…</div>}>
             <Routes>
               {/* Landing — role selector */}
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<StudentLogin />} />
               <Route path="/about" element={<About />} />
 
               {/* Student flow */}

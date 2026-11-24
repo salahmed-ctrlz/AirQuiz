@@ -141,7 +141,7 @@ export default function QuizActive() {
       toast({
         title: t('quiz.timeExtended'),
         description: t('quiz.moreTime'),
-        className: 'bg-green-50 border-green-200 text-green-900',
+        className: 'border-success/40',
       });
     },
     onRoomReset: () => {
@@ -266,11 +266,9 @@ export default function QuizActive() {
 
       {/* ── RECONNECTING OVERLAY ────────────────────────────────────────────── */}
       {status !== 'connected' && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-card border rounded-2xl p-8 shadow-2xl text-center space-y-4 max-w-xs mx-4 animate-in fade-in zoom-in-95 duration-300">
-            <div className="h-16 w-16 mx-auto rounded-full bg-amber-500/10 flex items-center justify-center">
-              <WifiOff className="h-8 w-8 text-amber-500 animate-pulse" />
-            </div>
+        <div className="fixed inset-0 z-50 bg-background/90 flex items-center justify-center">
+          <div className="bg-card border rounded-lg p-6 text-center space-y-4 max-w-xs mx-4">
+            <WifiOff className="h-8 w-8 mx-auto text-warning" />
             <div>
               <h3 className="font-bold text-lg">{t('quiz.connectionLost')}</h3>
               <p className="text-sm text-muted-foreground mt-1">
@@ -284,7 +282,7 @@ export default function QuizActive() {
       )}
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur shadow-sm">
+      <header className="sticky top-0 z-10 border-b border-border bg-background">
         <div className="flex items-center gap-2 px-3 py-2">
           {/* Logo — hidden on tiny screens to save space */}
           <img src={logo} alt="AirQuiz" className="h-5 w-auto hidden sm:block dark:brightness-0 dark:invert flex-shrink-0" />
@@ -298,18 +296,18 @@ export default function QuizActive() {
                   onClick={() => setCurrentIndex(idx)}
                   aria-label={`Question ${idx + 1}`}
                   className={`
-                    relative h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold
-                    transition-all flex-shrink-0 touch-manipulation
+                    relative h-9 w-9 rounded-md flex items-center justify-center text-sm font-semibold
+                    transition-colors flex-shrink-0 touch-manipulation
                     ${currentIndex === idx
-                      ? 'bg-blue-600 text-white shadow-md scale-110 ring-2 ring-blue-300'
+                      ? 'bg-primary text-primary-foreground'
                       : answers[q.id]
-                        ? 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700'
+                        ? 'bg-primary/10 text-primary border border-primary/30'
                         : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}
                   `}
                 >
                   {idx + 1}
                   {flagged.has(q.id) && (
-                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-orange-500 border-2 border-background" />
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-warning border-2 border-background" />
                   )}
                 </button>
               ))}
@@ -321,10 +319,13 @@ export default function QuizActive() {
             <span className="text-xs text-muted-foreground font-medium tabular-nums">
               {answeredCount}/{questions.length}
             </span>
+            {pendingCount > 0 && status === 'connected' && (
+              <span className="text-xs text-warning" role="status">{t('quiz.saving')}</span>
+            )}
             {timeRemaining !== null && (
-              <div className={`px-2 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1 transition-colors ${
+              <div className={`px-2 py-1 rounded-md text-sm font-mono font-semibold flex items-center gap-1 transition-colors ${
                 timeRemaining < 60
-                  ? 'bg-red-100 text-red-600 animate-pulse dark:bg-red-900/40 dark:text-red-400'
+                  ? 'bg-destructive/10 text-destructive'
                   : 'bg-secondary text-foreground'
               }`}>
                 <Clock className="h-3 w-3" />
@@ -333,7 +334,7 @@ export default function QuizActive() {
             )}
             <div
               className={`h-2.5 w-2.5 rounded-full flex-shrink-0 transition-colors ${
-                status === 'connected' ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'
+                status === 'connected' ? 'bg-success' : 'bg-destructive'
               }`}
               title={status}
             />
@@ -345,31 +346,21 @@ export default function QuizActive() {
       <main className="flex-1 container max-w-3xl mx-auto px-3 py-4 flex flex-col">
         {isLocked ? (
           /* Exam finished view */
-          <div className="flex flex-col items-center justify-center flex-1 space-y-8 text-center animate-in fade-in zoom-in duration-500">
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse" />
-              <div className="h-28 w-28 rounded-full bg-blue-50 dark:bg-blue-950 border-4 border-blue-100 dark:border-blue-800 flex items-center justify-center relative z-10">
-                <CheckCircle className="h-14 w-14 text-blue-600" />
-              </div>
+          <div className="flex flex-col items-center justify-center flex-1 gap-6 text-center">
+            <CheckCircle className="h-12 w-12 text-success" />
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold tracking-tight">{t('done.goodJob')}</h2>
+              <p className="text-muted-foreground px-6 max-w-sm">{t('done.completed')}</p>
             </div>
-            <div className="space-y-3">
-              <h2 className="text-3xl font-bold tracking-tight">{t('done.goodJob')}</h2>
-              <p className="text-muted-foreground text-lg px-6">{t('done.completed')}</p>
-            </div>
-            <div className="w-full max-w-xs bg-card border rounded-xl p-6 shadow-sm">
-              <p className="text-sm font-medium mb-2">{t('done.status')}</p>
-              <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 py-3 rounded-lg font-medium">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                {t('done.submitted')}
-              </div>
-              <p className="text-xs text-muted-foreground mt-4">{t('done.waitForResults')}</p>
-            </div>
+            <p className="rounded-md border bg-card px-4 py-3 text-sm text-muted-foreground max-w-xs">
+              <span className="font-medium text-foreground">{t('done.submitted')}.</span> {t('done.waitForResults')}
+            </p>
           </div>
         ) : (
           /* Active question card */
           <div className="space-y-3 flex-1 flex flex-col">
-            <Card className="border shadow-sm flex-1 flex flex-col">
-              <CardHeader className="bg-secondary/20 border-b py-3 px-4">
+            <Card className="flex-1 flex flex-col">
+              <CardHeader className="border-b py-3 px-4">
                 <CardTitle
                   className="text-base sm:text-lg flex justify-between items-start font-medium leading-relaxed"
                   dir={isArabic(currentQuestion.text) ? 'rtl' : 'ltr'}
@@ -383,8 +374,8 @@ export default function QuizActive() {
                     onClick={() => toggleFlag(currentQuestion.id)}
                     className={`ml-3 p-2 rounded-lg transition-colors flex-shrink-0 touch-manipulation ${
                       flagged.has(currentQuestion.id)
-                        ? 'text-orange-500 bg-orange-500/10'
-                        : 'text-muted-foreground/40 hover:text-orange-400 hover:bg-orange-500/5'
+                        ? 'text-warning bg-warning/10'
+                        : 'text-muted-foreground hover:bg-accent'
                     }`}
                     title={flagged.has(currentQuestion.id) ? t('quiz.unflag') : t('quiz.flag')}
                     aria-label={flagged.has(currentQuestion.id) ? 'Unflag question' : 'Flag question for review'}
@@ -416,27 +407,27 @@ export default function QuizActive() {
                         disabled={isLocked}
                         dir={isArabic(option) ? 'rtl' : 'ltr'}
                         className={`
-                          min-h-[52px] px-4 py-3 rounded-xl border-2 transition-all touch-manipulation
+                          min-h-[52px] px-4 py-3 rounded-lg border-2 transition-colors touch-manipulation
                           text-sm sm:text-base text-left w-full
                           ${isArabic(option) ? 'text-right' : 'text-left'}
                           ${isSelected
-                            ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/40 shadow-sm ring-1 ring-blue-600/30'
-                            : 'border-border hover:border-blue-300 hover:bg-accent active:scale-[0.98]'}
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:bg-accent'}
                           ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
                         `}
                       >
                         <div className={`flex items-center gap-3 ${isArabic(option) ? 'flex-row-reverse' : ''}`}>
                           {/* Option letter badge */}
-                          <span className={`flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border transition-colors ${
+                          <span className={`flex-shrink-0 h-7 w-7 rounded-md flex items-center justify-center text-sm font-semibold border transition-colors ${
                             isSelected
-                              ? 'bg-blue-600 text-white border-blue-600'
+                              ? 'bg-primary text-primary-foreground border-primary'
                               : 'bg-secondary text-muted-foreground border-border'
                           }`}>
                             {optLabel}
                           </span>
                           <span className="font-medium text-foreground flex-1">{option}</span>
                           {isSelected && (
-                            <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                            <CheckCircle className="h-5 w-5 text-primary flex-shrink-0" />
                           )}
                         </div>
                       </button>
@@ -452,7 +443,7 @@ export default function QuizActive() {
       {/* ── BOTTOM NAVIGATION BAR (fixed, safe-area aware) ──────────────────── */}
       {!isLocked && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-md border-t border-border shadow-lg"
+          className="fixed bottom-0 left-0 right-0 z-20 bg-background border-t border-border"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           <div className="container max-w-3xl mx-auto px-3 py-3 flex gap-3">
@@ -476,7 +467,7 @@ export default function QuizActive() {
                   setIsLocked(true);
                   toast({ title: t('quiz.examFinished'), description: t('quiz.submitted') });
                 }}
-                className="flex-1 h-12 text-base bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-200 touch-manipulation"
+                className="flex-1 h-12 text-base bg-success hover:bg-success/90 text-success-foreground touch-manipulation"
               >
                 <CheckCircle className="h-5 w-5 ltr:mr-2 rtl:ml-2" />
                 {t('quiz.finish')}

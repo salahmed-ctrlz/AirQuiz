@@ -13,16 +13,16 @@ export function ConnectionStatus({ status, isDemo, className }: ConnectionStatus
     connected: {
       icon: Wifi,
       label: isDemo ? 'Demo Mode' : 'Connected',
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10',
-      dotColor: 'bg-emerald-500',
+      color: 'text-success',
+      bgColor: 'bg-success/10',
+      dotColor: 'bg-success',
     },
     connecting: {
       icon: Loader2,
       label: 'Connecting...',
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-500/10',
-      dotColor: 'bg-amber-500',
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      dotColor: 'bg-warning',
     },
     disconnected: {
       icon: WifiOff,

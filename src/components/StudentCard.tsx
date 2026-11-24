@@ -28,7 +28,7 @@ export function StudentCard({ student, showScore = true, totalQuestions }: Stude
       <span
         className={cn(
           'absolute top-3 right-3 h-3 w-3 rounded-full',
-          student.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'
+          student.isOnline ? 'bg-success animate-pulse' : 'bg-muted-foreground'
         )}
       />
 

@@ -6,11 +6,11 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { useSocket } from '@/hooks/useSocket';
 import { useTranslation } from '@/i18n/LanguageContext';
-import { Loader2, User, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -113,68 +113,47 @@ export default function WaitingRoom() {
   if (!studentInfo) return null;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4" dir={dir}>
-      <div className="w-full max-w-md space-y-8">
-        <div className="flex justify-center">
-          <img src={logo} alt="AirQuiz" className="h-12 w-auto dark:brightness-0 dark:invert" />
-        </div>
+    <div className="min-h-[100dvh] flex flex-col bg-background" dir={dir}>
+      <header className="px-5 pt-4 pt-safe">
+        <img src={logo} alt="AirQuiz" className="h-9 w-auto dark:brightness-0 dark:invert" />
+      </header>
 
-        <Card className="border-2 shadow-lg">
-          <CardContent className="pt-6 space-y-6">
-            {/* student info */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">
-                  {studentInfo.firstName} {studentInfo.lastName}
-                </p>
-                <p className="text-sm text-muted-foreground">{t('login.group')} {studentInfo.group}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('login.room')}: <span className="font-mono text-primary">{studentInfo.room_id}</span>
-                </p>
-              </div>
-            </div>
+      <main className="flex-1 w-full max-w-md mx-auto px-5 pt-10">
+        <p className="text-muted-foreground">{t('login.group')} {studentInfo.group}</p>
+        <h1 className="text-3xl font-semibold tracking-tight">{studentInfo.firstName} {studentInfo.lastName}</h1>
 
-            {/* error display */}
-            {errorMessage && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>{t('waiting.errorJoining')}</AlertTitle>
-                <AlertDescription>{errorMessage}</AlertDescription>
-              </Alert>
+        {errorMessage ? (
+          <div className="mt-8 space-y-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{t('waiting.errorJoining')}</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+            <Button variant="outline" className="h-12 w-full" onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t('waiting.back')}
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-10 flex items-start gap-4" role="status" aria-live="polite">
+            {isJoined ? (
+              <span className="mt-2 h-3 w-3 shrink-0 rounded-full bg-success" />
+            ) : (
+              <Loader2 className="mt-1 h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
             )}
-
-            {/* connection status */}
-            <div className="flex justify-center">
-              <ConnectionStatus status={status} isDemo={isDemo} />
+            <div>
+              <p className="text-lg font-medium">{isJoined ? t('waiting.youAreIn') : t('waiting.connecting')}</p>
+              <p className="text-muted-foreground">{isJoined ? t('waiting.waitingForHost') : t('waiting.pleaseWait')}</p>
+              <p className="mt-4 text-sm text-muted-foreground">
+                {t('waiting.keepOpen')}
+              </p>
             </div>
+          </div>
+        )}
 
-            {/* waiting animation */}
-            <div className="text-center space-y-4 py-8">
-              <div className="flex justify-center">
-                <div className="relative">
-                  <Loader2 className={`h-16 w-16 text-primary ${isJoined ? 'animate-none' : 'animate-spin'}`} />
-                  {isJoined && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-8 w-8 rounded-full bg-green-500 animate-pulse" />
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <p className="text-lg font-medium text-foreground">
-                  {isJoined ? t('waiting.youAreIn') : t('waiting.connecting')}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isJoined ? t('waiting.waitingForHost') : t('waiting.pleaseWait')}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="mt-10">
+          <ConnectionStatus status={status} isDemo={isDemo} />
+        </div>
+      </main>
     </div>
   );
 }

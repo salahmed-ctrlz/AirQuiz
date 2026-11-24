@@ -61,7 +61,7 @@ export function Timer({ initialSeconds, onTimeUp, isPaused = false, className }:
             strokeLinecap="round"
             className={cn(
               'transition-all duration-1000',
-              isCritical ? 'text-destructive' : isWarning ? 'text-amber-500' : 'text-primary'
+              isCritical ? 'text-destructive' : isWarning ? 'text-warning' : 'text-primary'
             )}
           />
         </svg>

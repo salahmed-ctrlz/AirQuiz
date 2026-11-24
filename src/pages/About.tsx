@@ -43,7 +43,7 @@ export default function About() {
             {/* Background Decorations */}
             <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/5 to-transparent -z-10" />
             <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-50 -z-10 animate-pulse" />
-            <div className="absolute top-1/2 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl opacity-30 -z-10" />
+            <div className="absolute top-1/2 -right-24 w-64 h-64 bg-success/10 rounded-full blur-3xl opacity-30 -z-10" />
 
             {/* header */}
             <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md px-4 py-3">
@@ -164,18 +164,18 @@ export default function About() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors group">
+                    <Card className="border-success/40 bg-success/10 hover:bg-success/10 transition-colors group">
                         <CardContent className={`p-8 space-y-4 ${isAr ? 'text-right' : ''}`}>
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em]">{t('about.openSource')}</p>
-                                <Github className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                                <p className="text-xs font-black text-success uppercase tracking-[0.2em]">{t('about.openSource')}</p>
+                                <Github className="h-5 w-5 text-success" />
                             </div>
                             <p className="text-sm text-foreground/70 leading-relaxed font-medium">{t('about.openSourceDesc')}</p>
                             <a
                                 href="https://github.com/salahmed-ctrlz"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-sm transition-all hover:gap-4 ${isAr ? 'flex-row-reverse' : ''}`}
+                                className={`inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-success/10 text-success font-bold text-sm transition-all hover:gap-4 ${isAr ? 'flex-row-reverse' : ''}`}
                             >
                                 <Github className="h-4 w-4" />
                                 <span>GitHub Repository</span>
