@@ -18,7 +18,16 @@ PROJECT_ROOT = BASE_DIR if FROZEN else Path(__file__).parent.parent
 if os.getenv("AIRQUIZ_DATA_DIR"):
     DATA_DIR = Path(os.environ["AIRQUIZ_DATA_DIR"])
 elif FROZEN:
-    DATA_DIR = Path(sys.executable).parent / "AirQuizData"
+    # Portable: keep data next to the program. Installed under Program Files (not
+    # writable without admin): fall back to Documents so updates never touch it.
+    _beside = Path(sys.executable).parent / "AirQuizData"
+    try:
+        _beside.mkdir(parents=True, exist_ok=True)
+        (_beside / ".w").write_text("ok")
+        (_beside / ".w").unlink()
+        DATA_DIR = _beside
+    except OSError:
+        DATA_DIR = Path.home() / "Documents" / "AirQuizData"
 else:
     DATA_DIR = PROJECT_ROOT / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)

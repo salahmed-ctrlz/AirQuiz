@@ -36,6 +36,7 @@ import {
   Users,
   CheckCircle,
   LogOut,
+  Power,
   FlaskConical,
   StopCircle,
   FileJson,
@@ -340,6 +341,13 @@ export default function Dashboard() {
     toast({ description: "Downloading CSV Report..." });
   }, [roomId]);
 
+  const handleQuit = useCallback(async () => {
+    if (!confirm('Stop AirQuiz? Students will be disconnected. Their answers stay saved.')) return;
+    await adminFetch('/api/admin/shutdown', { method: 'POST' }).catch(() => undefined);
+    setAdminToken(null);
+    document.body.innerHTML = '<p style="font:16px system-ui;padding:3rem;text-align:center">AirQuiz has stopped. You can close this tab.</p>';
+  }, []);
+
   const handleLogout = useCallback(() => {
     setAdminToken(null);
     navigate('/admin');
@@ -498,8 +506,11 @@ export default function Dashboard() {
               </div>
             )}
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <Button variant="ghost" size="sm" onClick={handleLogout} title="Sign out">
               <LogOut className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleQuit} title="Stop AirQuiz on this computer">
+              <Power className="h-4 w-4" />
             </Button>
           </div>
         </div>

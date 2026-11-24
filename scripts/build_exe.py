@@ -4,6 +4,7 @@ Build a single-file AirQuiz executable for the current OS.
 
     python scripts/build_exe.py            # builds the web app, then the exe
     python scripts/build_exe.py --skip-web # reuse an existing dist/
+    python scripts/build_exe.py --onedir   # folder build (used by the installer)
 
 Output: release/AirQuiz(.exe)  — PyInstaller cannot cross-compile, so run this
 on Windows for a .exe, on macOS for a Mac app binary, on Linux for a Linux binary.
@@ -40,9 +41,12 @@ def main():
 
     out = ROOT / "release"
     shutil.rmtree(out, ignore_errors=True)
+    # --onedir starts in about a second and trips antivirus far less than --onefile,
+    # which unpacks 40 MB to a temp folder on every launch. It is what the installer ships.
+    mode = "--onedir" if "--onedir" in sys.argv else "--onefile"
     run([
         sys.executable, "-m", "PyInstaller", str(BACKEND / "run.py"),
-        "--name", "AirQuiz", "--onefile", "--console", "--noconfirm", "--clean",
+        "--name", "AirQuiz", mode, "--console", "--icon", str(ROOT / "public" / "icon.ico"), "--noconfirm", "--clean",
         "--distpath", str(out), "--workpath", str(ROOT / "build"), "--specpath", str(ROOT / "build"),
         "--paths", str(BACKEND),
         "--add-data", f"{ROOT / 'dist'}{SEP}dist",
@@ -52,10 +56,11 @@ def main():
         "--hidden-import", "handlers.admin", "--hidden-import", "handlers.student",
         "--hidden-import", "handlers.rooms", "--hidden-import", "services.exam_service",
         "--hidden-import", "services.export_service", "--hidden-import", "services.student_exam",
-        "--hidden-import", "main",
+        "--hidden-import", "main", "--hidden-import", "network", "--collect-submodules", "zeroconf",
     ])
-    exe = next(out.glob("AirQuiz*"))
-    print(f"\nBuilt {exe} ({exe.stat().st_size / 1e6:.1f} MB)")
+    exe = out / "AirQuiz" if mode == "--onedir" else next(out.glob("AirQuiz*"))
+    size = sum(f.stat().st_size for f in exe.rglob("*") if f.is_file()) if exe.is_dir() else exe.stat().st_size
+    print(f"\nBuilt {exe} ({size / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":
