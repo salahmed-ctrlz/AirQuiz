@@ -21,6 +21,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Socket payloads are untyped JSON for now; tracked as warnings until typed.
+      "@typescript-eslint/no-explicit-any": "warn",
+      // shadcn/ui primitives intentionally extend props with empty interfaces.
+      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
 );

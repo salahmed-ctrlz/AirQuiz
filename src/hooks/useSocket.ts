@@ -265,7 +265,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         });
         break;
 
-      case 'SUBMIT_ANSWER':
+      case 'SUBMIT_ANSWER': {
         const studentId = sessionStorage.getItem('studentId');
         const option = event.payload.selectedOption;
 
@@ -275,8 +275,9 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
           option: option
         });
         break;
+      }
 
-      case 'ADMIN_START_EXAM':
+      case 'ADMIN_START_EXAM': {
         const start_payload = {
           duration_minutes: event.payload.durationMinutes,
           room_id: event.payload.room_id,
@@ -286,6 +287,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         };
         socketRef.current.emit('admin_start_exam', start_payload);
         break;
+      }
 
       case 'ADMIN_END_EXAM':
         socketRef.current.emit('admin_end_exam', { room_id: event.payload?.room_id });

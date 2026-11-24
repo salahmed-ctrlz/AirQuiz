@@ -45,3 +45,8 @@ Thumbs.db
 # Misc artifacts
 *.resolved
 .gemini/
+
+# Runtime data (database, exams, admin password) for packaged builds
+data/
+build/
+*.spec.bak
