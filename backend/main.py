@@ -31,7 +31,7 @@ from services import exam_service
 from services.export_service import build_csv
 from sqlalchemy.orm import Session
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 @asynccontextmanager

@@ -1,7 +1,7 @@
 {
   "name": "airquiz-classroom",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Offline-first, real-time classroom quiz platform",
   "author": {
     "name": "Salah Eddine Medkour",

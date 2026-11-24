@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-24
+
+### Added
+- Windows installer (adds the firewall rule and shortcuts), portable zip, macOS and Linux folder builds; CI smoke-tests each
+- `airquiz.local` name over mDNS, port 80 by default, and a join-the-Wi-Fi QR
+- Automatic teacher sign-in on the host computer; "Stop AirQuiz" button
+- `scripts/loadtest.py` and `docs/NETWORKING.md`
+
+### Fixed
+- Server froze at ~15 simultaneous joins (database connection pool exhausted while handlers held sessions)
+
+### Changed
+- Faster answers (cached lookups), one commit when an exam starts, static files compressed once and cached, dashboard updates spaced by room size, socket reconnects retry with jitter
+
 ## [1.1.0] - 2026-11-24
 
 ### Added
