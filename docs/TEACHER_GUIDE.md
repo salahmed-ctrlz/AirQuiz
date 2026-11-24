@@ -4,13 +4,14 @@ AirQuiz runs on your computer and students join from their phones over the class
 
 ## Before class
 
-1. **Start AirQuiz** (double-click `AirQuiz.exe`, or `start.bat` / `start.sh` if you run from source). A window opens showing the student address, a QR code and your teacher password.
-2. **Network**: your computer and the students' phones must be on the same network — a Wi-Fi router, a campus network that allows device-to-device traffic, or a phone/laptop hotspot. If students cannot reach the address, try another network or a dedicated router (client isolation on guest Wi-Fi is the usual cause).
-3. **Windows Firewall** may ask whether to allow AirQuiz on private networks. Choose **Allow**.
+1. **Install** (Windows): run `AirQuiz-Setup.exe` from the [Releases page](https://github.com/salahmed-ctrlz/AirQuiz/releases/latest). It adds a shortcut and opens the Windows Firewall for AirQuiz so phones can connect. No Python or Node needed. Prefer no installer? Unzip `AirQuiz-windows-portable.zip` anywhere and run `AirQuiz.exe`. (macOS: unzip and run `AirQuiz`; Linux: extract the tar.gz and run `./AirQuiz`.)
+2. **Start AirQuiz**. A window shows the student address and a QR code, and your browser opens the teacher page already signed in. Keep the window open during the exam (or use the power button in the dashboard to stop it).
+3. **Network**: your computer and the students' phones must be on the same network — see [Networking and scale](NETWORKING.md). If students can't reach the address, client isolation on school/guest Wi-Fi is the usual cause; use a router or hotspot, and the *Join Wi-Fi first* QR in the join dialog.
+4. **Windows Firewall**: the installer already allowed AirQuiz. With the portable zip, choose **Allow** on the first-run prompt.
 
 ## Running an exam
 
-1. Open the teacher page (it opens automatically, or go to `http://localhost:8000/admin`) and sign in with the password from the AirQuiz window.
+1. The teacher page opens automatically on the computer running AirQuiz (no password needed there). From another device, open `http://<address>/admin` and sign in with the password from the AirQuiz window.
 2. **Create or open a room**. A room is one class sitting one exam.
 3. Click **Join code** and project it. Students scan the QR code or open the address and type the code.
 4. **Pick an exam** from the library (or upload a JSON file / build one with *Create New*). Choose duration, how many questions each student gets, and the maximum number of students.
@@ -26,13 +27,13 @@ Good to know:
 
 ## Your data
 
-Everything lives in the `AirQuizData` folder next to the program (or `data/` when run from source):
+Everything lives in an `AirQuizData` folder: next to the program for the portable version, in `Documents\AirQuizData` for the installed one, `data/` when run from source:
 
 | File | What it is |
 |---|---|
 | `airquiz.db` | students, answers, rooms |
 | `exams/` | your exam files (JSON) |
-| `admin_password.txt` | teacher password — edit it to change it, or set the `ADMIN_PASSWORD` environment variable |
+| `admin_password.txt` | password for signing in from *other* devices — edit it to change it, or set the `ADMIN_PASSWORD` environment variable |
 | `secret.key` | signs login sessions; delete it to sign everyone out |
 
 Copy the folder to back up or to move to another computer.
@@ -66,6 +67,6 @@ Copy the folder to back up or to move to another computer.
 | Problem | Fix |
 |---|---|
 | Phones can't open the address | Same network? Disable guest-network isolation; try the other address in the *Join code* dialog |
-| "Port 8000 is busy" | AirQuiz picks the next free port automatically; use the address it prints |
+| Address has `:8001` or similar | Port 80 was busy; AirQuiz picked the next free port. Use the address it prints |
 | Forgot the password | Open `AirQuizData/admin_password.txt` |
 | Windows SmartScreen warning | The program is unsigned: *More info → Run anyway* |
