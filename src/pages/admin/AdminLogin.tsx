@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/Footer';
-import { config } from '@/lib/config';
+import { adminLogin, getAdminToken } from '@/lib/api';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -19,25 +19,19 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem('isAdmin') === 'true') {
+    if (getAdminToken()) {
       navigate('/admin/dashboard');
     }
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Check password
-    if (password === config.adminPassword) {
-      sessionStorage.setItem('isAdmin', 'true');
+    const result = await adminLogin(password);
+    if (result.ok) {
       navigate('/admin/dashboard');
     } else {
-      toast({
-        title: 'Access Denied',
-        description: 'Incorrect password. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Access denied', description: result.message, variant: 'destructive' });
       setIsLoading(false);
     }
   };

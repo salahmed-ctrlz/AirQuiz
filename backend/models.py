@@ -1,8 +1,11 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON, Enum as SQLEnum
-from sqlalchemy.orm import relationship
-from datetime import datetime
 import enum
+from datetime import datetime
+
 from database import Base
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import relationship
+
 
 class GroupEnum(str, enum.Enum):
     G1 = "G1"
@@ -70,3 +73,20 @@ class Response(Base):
     # Relationships
     student = relationship("Student", back_populates="responses")
     question = relationship("Question", back_populates="responses")
+
+
+class RoomState(Base):
+    """Persisted room settings so a server restart doesn't change room codes
+    or silently end a running exam."""
+    __tablename__ = "rooms"
+
+    room_id = Column(String, primary_key=True)
+    code = Column(String, nullable=False)
+    capacity_limit = Column(Integer, default=300)
+    questions_to_serve = Column(Integer, default=0)
+    exam_active = Column(Boolean, default=False)
+    exam_start_time = Column(DateTime, nullable=True)
+    exam_end_time = Column(DateTime, nullable=True)
+    exam_duration_seconds = Column(Integer, default=0)
+    current_exam_title = Column(String, nullable=True)
+    results_revealed = Column(Boolean, default=False)

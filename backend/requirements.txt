@@ -1,9 +1,6 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-python-socketio==5.11.0
-sqlalchemy==2.0.36
-pydantic==2.10.0
-qrcode==7.4.2
-pillow==10.4.0
-python-multipart==0.0.9
-aiofiles==24.1.0
+fastapi>=0.115,<0.120
+uvicorn[standard]>=0.32,<0.40
+python-socketio>=5.11,<6
+sqlalchemy>=2.0.36,<2.1
+pydantic>=2.10,<3
+qrcode>=7.4,<9

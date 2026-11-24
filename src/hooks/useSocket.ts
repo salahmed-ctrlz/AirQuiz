@@ -11,9 +11,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { config } from '@/lib/config';
+import { getAdminToken } from '@/lib/api';
 import type { ConnectionStatus, ClientEvent, RoomState, Student, Question } from '@/lib/types';
 
 interface UseSocketOptions {
+  /** Authenticate this socket as the teacher's dashboard on every (re)connect. */
+  admin?: boolean;
+  onAnswerRejected?: (questionId: number, reason: string) => void;
   onConnect?: () => void;
   onJoined?: (studentId: string, roomState: RoomState, previousAnswers?: Record<string, string>) => void;
   onStartExam?: (questions: Question[], durationSeconds: number, endTime: string) => void;
@@ -89,7 +93,18 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       socketRef.current.on('connect', () => {
         console.log('✅ Socket.IO connected');
         setStatus('connected');
+        if (optionsRef.current.admin) {
+          socketRef.current?.emit('admin_auth', { token: getAdminToken() });
+        }
         optionsRef.current.onConnect?.();
+      });
+
+      socketRef.current.on('admin_denied', (data: { message: string }) => {
+        optionsRef.current.onError?.(data?.message || 'Admin session expired.');
+      });
+
+      socketRef.current.on('answer_rejected', (data: { question_id: number; reason: string }) => {
+        optionsRef.current.onAnswerRejected?.(data.question_id, data.reason);
       });
 
       socketRef.current.on('disconnect', () => {

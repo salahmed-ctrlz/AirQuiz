@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
 from datetime import datetime
+from typing import Dict, List, Optional
+
 from models import GroupEnum
+from pydantic import BaseModel, Field, field_validator, model_validator
+
 
 # Metadata Schemas
 class MetadataCreate(BaseModel):
@@ -16,8 +18,8 @@ class MetadataResponse(BaseModel):
 
 # Student Schemas
 class StudentJoin(BaseModel):
-    first_name: str = Field(min_length=1)
-    last_name: str = Field(min_length=1)
+    first_name: str = Field(min_length=1, max_length=60)
+    last_name: str = Field(min_length=1, max_length=60)
     email: Optional[str] = None
     group: GroupEnum
 
@@ -30,21 +32,47 @@ class StudentResponse(BaseModel):
     is_online: bool
     last_active: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 # Question Schemas
 class QuestionData(BaseModel):
     id: int
-    text: str
-    options: List[str]
-    correct: str
+    text: str = Field(min_length=1)
+    options: List[str] = Field(min_length=2, max_length=10)
+    correct: str = ""
+    correct_index: Optional[int] = None  # legacy: index into options
     time: int = 30
     image: Optional[str] = None
 
+    @field_validator("options")
+    @classmethod
+    def _options_clean(cls, v: List[str]) -> List[str]:
+        v = [o.strip() for o in v]
+        if any(not o for o in v):
+            raise ValueError("options must not be empty")
+        if len(set(v)) != len(v):
+            raise ValueError("options must be unique")
+        return v
+
+    @model_validator(mode="after")
+    def _resolve_correct(self):
+        if not self.correct and self.correct_index is not None and 0 <= self.correct_index < len(self.options):
+            self.correct = self.options[self.correct_index]
+        self.correct = self.correct.strip()
+        if self.correct not in self.options:
+            raise ValueError(f"question {self.id}: the correct answer must be one of the options")
+        return self
+
 class ExamData(BaseModel):
-    title: str
-    questions: List[QuestionData]
+    title: str = Field(min_length=1, max_length=200)
+    questions: List[QuestionData] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _unique_ids(self):
+        ids = [q.id for q in self.questions]
+        if len(set(ids)) != len(ids):
+            raise ValueError("question ids must be unique")
+        return self
 
 # Response Schemas
 class AnswerSubmit(BaseModel):
