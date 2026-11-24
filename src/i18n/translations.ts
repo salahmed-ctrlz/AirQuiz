@@ -13,6 +13,22 @@ export const translations = {
         'landing.teacher': 'I am a Teacher',
         'landing.teacherDesc': 'Manage & launch exams',
         'landing.about': 'About this project',
+        // Join page
+        'join.title': 'Join a quiz',
+        'join.subtitle': 'Enter the code your teacher is showing.',
+        'join.code': 'Room code',
+        'join.codeHint': '6 digits, shown on the teacher\'s screen',
+        'join.nearby': 'Open rooms',
+        'join.firstName': 'First name',
+        'join.lastName': 'Last name',
+        'join.email': 'Email (optional)',
+        'join.group': 'Group',
+        'join.submit': 'Join',
+        'join.connecting': 'Connecting…',
+        'join.teacher': 'Teacher? Open the dashboard',
+        'join.offline': 'Not connected to the classroom network',
+        'join.restored': 'Welcome back — your details were filled in.',
+
 
         // Student Login
         'login.firstName': 'First Name',
@@ -22,6 +38,8 @@ export const translations = {
         'login.join': 'Join Room',
 
         // Waiting Room
+        'waiting.back': 'Back to the join page',
+        'waiting.keepOpen': 'Keep this page open. The quiz starts by itself when your teacher begins.',
         'waiting.connecting': 'Connecting to Room...',
         'waiting.pleaseWait': 'Please wait...',
         'waiting.youAreIn': 'You are in!',
@@ -29,6 +47,7 @@ export const translations = {
         'waiting.errorJoining': 'Error Joining Room',
 
         // Quiz Active
+        'quiz.saving': 'Saving…',
         'quiz.next': 'Next',
         'quiz.previous': 'Previous',
         'quiz.finish': 'Finish',
@@ -95,6 +114,22 @@ export const translations = {
         'landing.teacher': 'أنا أستاذ',
         'landing.teacherDesc': 'إدارة وإطلاق الامتحانات',
         'landing.about': 'حول هذا المشروع',
+        // Join page
+        'join.title': 'الانضمام إلى اختبار',
+        'join.subtitle': 'أدخل الرمز الذي يعرضه الأستاذ.',
+        'join.code': 'رمز القاعة',
+        'join.codeHint': '6 أرقام تظهر على شاشة الأستاذ',
+        'join.nearby': 'القاعات المفتوحة',
+        'join.firstName': 'الاسم',
+        'join.lastName': 'اللقب',
+        'join.email': 'البريد الإلكتروني (اختياري)',
+        'join.group': 'الفوج',
+        'join.submit': 'انضمام',
+        'join.connecting': 'جارٍ الاتصال…',
+        'join.teacher': 'أستاذ؟ افتح لوحة التحكم',
+        'join.offline': 'غير متصل بشبكة القسم',
+        'join.restored': 'مرحبًا بعودتك — تم ملء بياناتك.',
+
 
         // Student Login
         'login.firstName': 'الاسم',
@@ -104,6 +139,8 @@ export const translations = {
         'login.join': 'انضم للغرفة',
 
         // Waiting Room
+        'waiting.back': 'العودة إلى صفحة الانضمام',
+        'waiting.keepOpen': 'أبقِ هذه الصفحة مفتوحة. سيبدأ الاختبار تلقائيًا عندما يبدأه الأستاذ.',
         'waiting.connecting': 'جارٍ الاتصال بالغرفة...',
         'waiting.pleaseWait': 'يرجى الانتظار...',
         'waiting.youAreIn': '!أنت في الغرفة',
@@ -111,6 +148,7 @@ export const translations = {
         'waiting.errorJoining': 'خطأ في الانضمام للغرفة',
 
         // Quiz Active
+        'quiz.saving': 'جارٍ الحفظ…',
         'quiz.next': 'التالي',
         'quiz.previous': 'السابق',
         'quiz.finish': 'إنهاء',

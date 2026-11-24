@@ -45,6 +45,7 @@ export interface RoomState {
 export type ClientEvent =
   | { type: 'JOIN'; payload: { firstName: string; lastName: string; group: string; room_id?: string } }
   | { type: 'SUBMIT_ANSWER'; payload: { questionId: number; selectedOption: string; studentId?: string } }
+  | { type: 'ADMIN_RESUME_EXAM'; payload: { room_id: string; minutes: number } }
   | { type: 'ADMIN_START_EXAM'; payload: { durationMinutes: number; room_id?: string; exam_title?: string; questions_count?: number; shuffle?: boolean; capacity?: number } }
   | { type: 'ADMIN_END_EXAM'; payload?: { room_id?: string } }
   | { type: 'ADMIN_REVEAL_RESULTS'; payload?: { room_id?: string } }

@@ -319,6 +319,10 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
         socketRef.current.emit('join_room_admin', { room_id: event.payload.room_id });
         break;
 
+      case 'ADMIN_RESUME_EXAM':
+        socketRef.current.emit('admin_resume_exam', { room_id: event.payload.room_id, minutes: event.payload.minutes });
+        break;
+
       case 'ADMIN_EXTEND_EXAM':
         socketRef.current.emit('admin_extend_exam', {
           room_id: event.payload.room_id,

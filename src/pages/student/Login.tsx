@@ -1,240 +1,182 @@
 /**
- * AirQuiz - Classroom Assessment Platform
- * Student Login Component
- * 
- * @author Salah Eddine Medkour
- * @copyright 2024 Salah Eddine Medkour. All rights reserved.
- * @license MIT
- * @see https://github.com/salahmed-ctrlz
+ * AirQuiz — Join page (the app's front door for students).
+ * Scanning the teacher's QR opens this page with ?code= already filled in.
  */
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/Footer';
-import { useSocket } from '@/hooks/useSocket';
-import { config } from '@/lib/config';
-import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
-import { Loader2, RefreshCw } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useSocket } from '@/hooks/useSocket';
+import { useTranslation } from '@/i18n/LanguageContext';
+import { config } from '@/lib/config';
+import { cn } from '@/lib/utils';
+import logo from '@/assets/AirQuizLogoBLACKndBlueMain.svg';
+
+const PROFILE_KEY = 'airquiz.profile';
+
+type Profile = { firstName: string; lastName: string; email: string; group: string };
+
+const loadProfile = (): Partial<Profile> => {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
 
 export default function StudentLogin() {
   const navigate = useNavigate();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [group, setGroup] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [manualCode, setManualCode] = useState('');
+  const { t, dir } = useTranslation();
+  const [params] = useSearchParams();
+  const saved = loadProfile();
+
+  const [code, setCode] = useState((params.get('code') || '').replace(/\D/g, '').slice(0, 6));
+  const [firstName, setFirstName] = useState(saved.firstName || '');
+  const [lastName, setLastName] = useState(saved.lastName || '');
+  const [email, setEmail] = useState(saved.email || '');
+  const [group, setGroup] = useState(saved.group || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [rooms, setRooms] = useState<{ id: string; code: string; name: string }[]>([]);
 
-  // New State for Rooms
-  const [activeRooms, setActiveRooms] = useState<{ id: string, code: string, name: string }[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { connect, disconnect, status } = useSocket({ onRoomList: setRooms });
 
-  // Hook for room discovery
-  const { connect, disconnect, requestRooms } = useSocket({
-    onRoomList: (rooms) => {
-      setActiveRooms(rooms);
-      setIsRefreshing(false);
-    }
-  });
-
-  // Connect on mount to listen for rooms
-  // NOTE: Empty deps - we only want to run this once on mount
   useEffect(() => {
     connect();
-    // Tiny delay to allow connection before requesting, though onRoomList should fire on connect in backend
-    const t = setTimeout(() => requestRooms(), 500);
-    return () => {
-      clearTimeout(t);
-      disconnect();
-    };
+    return disconnect;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    requestRooms();
-    setTimeout(() => setIsRefreshing(false), 2000); // Timeout fallback
-  };
+  const isValid = code.length >= 3 && firstName.trim() && lastName.trim() && group;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !group) return;
-
-    // Use selected room code OR manual entry
-    let finalCode = roomCode === 'manual' ? manualCode.trim() : roomCode;
-    if (!finalCode) return;
-
-    // Normalize code to match backend expectations
-    finalCode = finalCode.toLowerCase().replace(/\s+/g, '-');
-
+    if (!isValid) return;
     setIsLoading(true);
-
-    // Store student info in session storage
-    // Note: room_id in storage is used by waiting room to displaying context.
-    // If using code, we might not know the exact room ID name yet, but we will send the code to join.
+    const profile: Profile = { firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), group };
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    } catch { /* private mode: fine */ }
     sessionStorage.setItem('studentInfo', JSON.stringify({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim() || undefined,
-      group,
-      room_id: finalCode // This will be sent as 'room_id' payload which backend now checks as Code too.
+      ...profile,
+      email: profile.email || undefined,
+      room_id: code.trim().toLowerCase(),
     }));
-
-    // Navigate to waiting room
     navigate('/waiting');
   };
 
-  const isValid = firstName.trim() && lastName.trim() && group && (roomCode === 'manual' ? manualCode.trim().length >= 3 : roomCode);
-
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-lg border-t-4 border-t-primary">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <img src={logo} alt="AirQuiz" className="h-16 w-auto" />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold">Welcome to AirQuiz</CardTitle>
-              <CardDescription className="mt-2">
-                Join an active session below.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-[100dvh] flex flex-col bg-background" dir={dir}>
+      <header className="flex items-center justify-between px-5 pt-4 pt-safe">
+        <img src={logo} alt="AirQuiz" className="h-9 w-auto dark:brightness-0 dark:invert" />
+        <div className="flex items-center gap-1">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
+      </header>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="roomSelect">Select Room</Label>
-                  <Button
+      <main className="flex-1 w-full max-w-md mx-auto px-5 pt-8 pb-10">
+        <h1 className="text-3xl font-semibold tracking-tight">{t('join.title')}</h1>
+        <p className="mt-2 text-muted-foreground">{t('join.subtitle')}</p>
+
+        {status !== 'connected' && status !== 'connecting' && (
+          <p role="status" className="mt-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+            {t('join.offline')}
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="code">{t('join.code')}</Label>
+            <Input
+              id="code"
+              inputMode="numeric"
+              autoComplete="off"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="000000"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              className="h-14 text-center font-mono text-3xl tracking-[0.35em]"
+              dir="ltr"
+            />
+            <p className="text-sm text-muted-foreground">{t('join.codeHint')}</p>
+            {rooms.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-sm text-muted-foreground">{t('join.nearby')}:</span>
+                {rooms.map((r) => (
+                  <button
+                    key={r.id}
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={handleRefresh}
-                    title="Refresh room list"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-
-                <Select value={roomCode} onValueChange={setRoomCode}>
-                  <SelectTrigger id="roomSelect" className="h-12">
-                    <SelectValue placeholder={activeRooms.length > 0 ? "Select a room..." : "Searching for rooms..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeRooms.map((room) => (
-                      <SelectItem key={room.code} value={room.code}>
-                        <span className="font-semibold">{room.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">({room.code})</span>
-                      </SelectItem>
-                    ))}
-                    {activeRooms.length === 0 && (
-                      <div className="p-2 text-sm text-center text-muted-foreground">No active rooms found.</div>
+                    onClick={() => setCode(r.code)}
+                    className={cn(
+                      'rounded-md border px-2.5 py-1 text-sm transition-colors',
+                      code === r.code ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-accent',
                     )}
-                    <SelectItem value="manual" className="font-semibold text-primary">
-                      + Enter Code Manually
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  >
+                    {r.name}
+                  </button>
+                ))}
               </div>
+            )}
+          </div>
 
-              {roomCode === 'manual' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <Label htmlFor="manualCode">Enter Code</Label>
-                  <Input
-                    id="manualCode"
-                    type="text"
-                    placeholder="e.g. 129482"
-                    value={manualCode}
-                    onChange={(e) => setManualCode(e.target.value)}
-                    className="h-12 font-mono tracking-widest text-center"
-                  />
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">{t('join.firstName')}</Label>
+              <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name" required className="h-12" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">{t('join.lastName')}</Label>
+              <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name" required className="h-12" />
+            </div>
+          </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    placeholder="John"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    autoComplete="given-name"
-                    className="h-12"
-                  />
-                </div>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium leading-none mb-2">{t('join.group')}</legend>
+            <div className="grid grid-cols-5 gap-2" role="radiogroup">
+              {config.groups.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  role="radio"
+                  aria-checked={group === g}
+                  onClick={() => setGroup(g)}
+                  className={cn(
+                    'h-12 rounded-md border text-sm font-medium transition-colors',
+                    group === g ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
+                  )}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    placeholder="Doe"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    autoComplete="family-name"
-                    className="h-12"
-                  />
-                </div>
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">{t('join.email')}</Label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email" className="h-12" dir="ltr" />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address (Optional)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="student@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                  className="h-12"
-                />
-                <p className="text-[10px] text-muted-foreground">Used for certificate delivery.</p>
-              </div>
+          <Button type="submit" size="lg" className="w-full h-12 text-base" disabled={!isValid || isLoading}>
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isLoading ? t('join.connecting') : t('join.submit')}
+          </Button>
+        </form>
 
-              <div className="space-y-2">
-                <Label htmlFor="group">Group</Label>
-                <Select value={group} onValueChange={setGroup} required>
-                  <SelectTrigger id="group" className="h-12">
-                    <SelectValue placeholder="Select your group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {config.groups.map((g) => (
-                      <SelectItem key={g} value={g}>
-                        {g}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-12 text-lg font-semibold mt-6 shadow-md"
-                disabled={!isValid || isLoading}
-              >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {isLoading ? 'Connecting...' : 'Join Quiz'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <p className="mt-8 text-center text-sm">
+          <Link to="/admin" className="text-muted-foreground underline underline-offset-4 hover:text-foreground">
+            {t('join.teacher')}
+          </Link>
+        </p>
       </main>
       <Footer />
     </div>

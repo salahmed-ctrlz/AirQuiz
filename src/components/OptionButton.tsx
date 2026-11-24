@@ -25,7 +25,7 @@ export function OptionButton({
   const getStateClasses = () => {
     if (isRevealed) {
       if (isCorrect) {
-        return 'bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300';
+        return 'bg-success/10 border-success/40 text-success';
       }
       if (isSelected && !isCorrect) {
         return 'bg-destructive/20 border-destructive text-destructive';
@@ -54,7 +54,7 @@ export function OptionButton({
         className={cn(
           'flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg',
           isRevealed && isCorrect
-            ? 'bg-emerald-500 text-white'
+            ? 'bg-success text-white'
             : isRevealed && isSelected && !isCorrect
             ? 'bg-destructive text-destructive-foreground'
             : isSelected
