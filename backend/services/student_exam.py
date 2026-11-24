@@ -46,11 +46,16 @@ def exam_questions(db: Session, title: Optional[str]) -> list:
     return q.all()
 
 
-def assign_exam(db: Session, student: Student, room) -> list:
-    """Generate and persist this student's unique exam for the room's running exam."""
-    assigned = build_student_exam(exam_questions(db, room.current_exam_title), room.questions_to_serve)
+def assign_exam(db: Session, student: Student, room, pool=None, commit: bool = True) -> list:
+    """Generate this student's unique exam for the room's running exam.
+    Pass a preloaded `pool` and commit=False to batch many students into one commit."""
+    pool = exam_questions(db, room.current_exam_title) if pool is None else pool
+    assigned = build_student_exam(pool, room.questions_to_serve)
     student.assigned_questions = assigned
-    db.commit()
+    if commit:
+        db.commit()
+    from manager import manager
+    manager.forget_assignment(student.id)
     return assigned
 
 

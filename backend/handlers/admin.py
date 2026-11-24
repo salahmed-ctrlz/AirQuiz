@@ -9,6 +9,7 @@ from services.student_exam import (
     assign_exam,
     assigned_to_payload,
     build_results_payload,
+    exam_questions,
 )
 
 
@@ -64,15 +65,19 @@ def register(manager, db_session_factory):
                     {Student.score: 0, Student.assigned_questions: None}, synchronize_session=False)
                 db.commit()
             manager.persist_room(room)
+            manager.forget_assignment()
 
-            # Unicast an individual exam to every connected student
-            for student_sid, rid in list(manager.active_rooms.items()):
-                if rid != room.room_id:
-                    continue
+            # Build every connected student's unique exam, commit once, then unicast
+            pool = exam_questions(db, title)
+            batch = []
+            for student_sid, rid in list(manager.active_connections_in_room(room.room_id)):
                 student = db.get(Student, int(manager.active_connections.get(student_sid, 0) or 0))
-                if not student:
-                    continue
-                assigned = assign_exam(db, student, room)
+                if student:
+                    batch.append((student_sid, student, assign_exam(db, student, room, pool, commit=False)))
+            db.commit()
+            for _, student, _ in batch:
+                manager.forget_assignment(student.id)
+            for student_sid, _, assigned in batch:
                 await sio.emit("START_EXAM", StartExamEvent(
                     duration_seconds=room.exam_duration_seconds,
                     end_time=room.end_time_iso(),
@@ -155,6 +160,7 @@ def register(manager, db_session_factory):
                 db.query(Response).filter(Response.student_id.in_(ids)).delete(synchronize_session=False)
                 db.query(Student).filter(Student.room_id == room_id).delete(synchronize_session=False)
             db.commit()
+            manager.forget_assignment()
             if room_id in manager.rooms:
                 manager.rooms[room_id].reset()
                 manager.persist_room(manager.rooms[room_id])
